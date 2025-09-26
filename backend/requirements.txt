@@ -5,7 +5,7 @@ opencv-python==4.8.1.78
 mediapipe==0.10.21
 numpy==1.26.4
 matplotlib==3.10.0
-qrcode==7.4.2
-reportlab==4.0.10
-numpy-stl==2.17.1
+qrcode==8.2
+reportlab==4.4.1
+numpy-stl==3.2.0
 gunicorn==21.2.0
