@@ -1,7 +1,7 @@
 // Configuração dinâmica para produção/desenvolvimento
 const IS_PRODUCTION = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
 const API_BASE = IS_PRODUCTION 
-    ? 'https://ortese-backend.onrender.com/api' 
+    ? 'https://ortoflow-backend.onrender.com/api' 
     : 'http://localhost:5000/api';
 
 console.log(`🌐 Ambiente: ${IS_PRODUCTION ? 'PRODUÇÃO' : 'DESENVOLVIMENTO'}`);
