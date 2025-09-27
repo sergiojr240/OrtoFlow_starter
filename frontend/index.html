@@ -10,23 +10,22 @@
     <div class="container">
         <header>
             <h1>Sistema de Geração de Órteses Personalizadas</h1>
-            <p class="subtitle">Sistema inteligente para criação de órteses 3D personalizadas</p>
+            <p class="subtitle">Solução completa para criação de órteses 3D personalizadas</p>
         </header>
 
         <!-- Etapa 1: Cadastro do Paciente -->
         <section id="etapa-cadastro" class="etapa ativa">
-            <h2>📝 1. Identificação do Paciente</h2>
+            <h2>1. Identificação do Paciente</h2>
             
-            <!-- Opção para pacientes existentes -->
+            <!-- Paciente existente -->
             <div class="paciente-existente">
-                <h3>🔍 Já possui cadastro?</h3>
+                <h3>Já possui cadastro?</h3>
                 <div class="form-group">
                     <label for="paciente-id-existente">Digite seu ID de paciente:</label>
                     <div class="input-group">
-                        <input type="text" id="paciente-id-existente" placeholder="Ex: P1A2B3C4D" 
-                               style="text-transform: uppercase">
+                        <input type="text" id="paciente-id-existente" placeholder="Ex: P1A2B3C4D" style="text-transform: uppercase">
                         <button type="button" onclick="verificarCadastro()" class="btn-secondary">
-                            🔎 Verificar
+                            Verificar Cadastro
                         </button>
                     </div>
                 </div>
@@ -37,9 +36,9 @@
                 <span>OU</span>
             </div>
 
-            <!-- Cadastro de novo paciente -->
+            <!-- Novo paciente -->
             <div class="novo-paciente">
-                <h3>👤 Novo Cadastro</h3>
+                <h3>Novo Cadastro</h3>
                 <form id="form-cadastro">
                     <div class="form-group">
                         <label for="nome">Nome Completo:</label>
@@ -54,44 +53,34 @@
                         <input type="email" id="email" name="email" placeholder="email@exemplo.com">
                     </div>
                     <button type="submit" class="btn-primary">
-                        📄 Cadastrar e Gerar Folha Padrão
+                        Cadastrar e Gerar Folha Padrão
                     </button>
                 </form>
             </div>
             
             <div id="resultado-cadastro" class="hidden resultado">
-                <h3>✅ Cadastro Realizado com Sucesso!</h3>
+                <h3>Cadastro Realizado com Sucesso!</h3>
                 <div class="info-paciente">
                     <p><strong>ID do Paciente:</strong> <span id="paciente-id" class="destaque"></span></p>
                     <div id="qrcode-container" class="qrcode"></div>
                 </div>
                 
                 <div class="acoes-folha">
-                    <h4>📋 Folha de Referência</h4>
+                    <h4>Folha de Referência</h4>
                     <p>Baixe a folha padrão para posicionar a mão durante a foto:</p>
                     <a id="link-folha-padrao" class="btn-primary" target="_blank">
-                        📥 Baixar Folha Padrão (PDF)
+                        Baixar Folha Padrão (PDF)
                     </a>
                     <button onclick="avancarParaUpload()" class="btn-secondary">
-                        ➡️ Continuar para Upload da Imagem
+                        Continuar para Upload da Imagem
                     </button>
-                </div>
-                
-                <div class="instrucoes-impressao">
-                    <h4>🖨️ Instruções de Impressão:</h4>
-                    <ol>
-                        <li>Baixe a folha padrão em PDF</li>
-                        <li>Imprima em papel A4 na orientação retrato</li>
-                        <li>Verifique se a impressão está em escala 100%</li>
-                        <li>O quadrado azul deve medir 6x6 cm</li>
-                    </ol>
                 </div>
             </div>
         </section>
 
         <!-- Etapa 2: Upload da Imagem -->
         <section id="etapa-upload" class="etapa">
-            <h2>📸 2. Upload da Imagem da Mão</h2>
+            <h2>2. Upload da Imagem da Mão</h2>
             
             <div class="info-paciente-atual">
                 <p><strong>Paciente:</strong> <span id="paciente-atual-nome">-</span></p>
@@ -99,14 +88,13 @@
             </div>
             
             <div class="instrucoes">
-                <h4>📋 Instruções para a Foto:</h4>
+                <h4>Instruções para a Foto:</h4>
                 <ol>
-                    <li>🖨️ Imprima a folha padrão gerada anteriormente</li>
-                    <li>👋 Posicione a mão sobre a folha, garantindo que o quadrado azul esteja visível</li>
-                    <li>📷 Tire uma foto nítida da mão sobre a folha</li>
-                    <li>⬆️ Faça o upload da imagem abaixo</li>
+                    <li>Imprima a folha padrão gerada anteriormente</li>
+                    <li>Posicione a mão sobre a folha, garantindo que o quadrado azul esteja visível</li>
+                    <li>Tire uma foto nítida da mão sobre a folha</li>
+                    <li>Faça o upload da imagem abaixo</li>
                 </ol>
-                <p class="dica">💡 <strong>Dica:</strong> Use boa iluminação e mantenha a câmera paralela à mão</p>
             </div>
             
             <form id="form-upload">
@@ -114,72 +102,56 @@
                 
                 <div class="form-group">
                     <label for="imagem">Selecionar Imagem da Mão:</label>
-                    <input type="file" id="imagem" name="imagem" accept="image/*" required 
-                           capture="environment">
+                    <input type="file" id="imagem" name="imagem" accept="image/*" required>
                     <small>Formatos aceitos: JPG, PNG (Máx. 10MB)</small>
                 </div>
                 
                 <div class="form-group checkbox">
                     <label>
                         <input type="checkbox" id="modo-manual"> 
-                        🔧 Usar modo manual para detecção de pontos (se a automática falhar)
+                        Usar modo manual para detecção de pontos
                     </label>
                 </div>
                 
-                <button type="submit" class="btn-primary">🔍 Processar Imagem e Analisar Medidas</button>
+                <button type="submit" class="btn-primary">Processar Imagem e Analisar Medidas</button>
             </form>
             
             <div id="resultado-processamento" class="hidden resultado">
-                <h3>✅ Processamento Concluído!</h3>
+                <h3>Processamento Concluído!</h3>
                 <div class="resultados-container">
                     <div class="imagem-container">
-                        <h4>🖼️ Imagem Processada</h4>
+                        <h4>Imagem Processada</h4>
                         <img id="imagem-processada" src="" alt="Imagem processada">
                     </div>
                     <div class="dimensoes-container">
-                        <h4>📏 Medidas Detectadas</h4>
+                        <h4>Medidas Detectadas</h4>
                         <div id="dimensoes" class="dimensoes"></div>
                     </div>
                 </div>
                 <div class="acoes">
-                    <button onclick="gerarOrtese()" class="btn-primary">🖨️ Gerar Órtese 3D Personalizada</button>
+                    <button onclick="gerarOrtese()" class="btn-primary">Gerar Órtese 3D Personalizada</button>
                 </div>
             </div>
         </section>
 
         <!-- Etapa 3: Download da Órtese -->
         <section id="etapa-download" class="etapa">
-            <h2>📥 3. Download da Órtese Personalizada</h2>
+            <h2>3. Download da Órtese Personalizada</h2>
             <div id="resultado-ortese" class="resultado">
                 <div class="sucesso">
-                    <h3>🎉 Órtese Gerada com Sucesso!</h3>
+                    <h3>Órtese Gerada com Sucesso!</h3>
                     <p>Sua órtese personalizada está pronta para download.</p>
                     
-                    <div class="arquivo-gerado">
-                        <p><strong>Arquivo:</strong> ortese_<span id="nome-arquivo">personalizada</span>.stl</p>
-                        <p><strong>Tamanho:</strong> <span id="tamanho-arquivo">-</span></p>
-                    </div>
-                    
                     <div class="acoes">
-                        <a id="link-download-stl" class="btn-primary">💾 Baixar Arquivo STL</a>
-                        <button onclick="reiniciarProcesso()" class="btn-secondary">🔄 Iniciar Novo Processo</button>
-                    </div>
-                    
-                    <div class="instrucoes-pos-download">
-                        <h4>📋 Próximos Passos:</h4>
-                        <ol>
-                            <li>💾 Salve o arquivo STL em seu computador</li>
-                            <li>🖨️ Use um software de impressão 3D para preparar o modelo</li>
-                            <li>🔧 Imprima a órtese com o material adequado</li>
-                            <li>👨‍⚕️ Consulte um profissional para ajustes finais</li>
-                        </ol>
+                        <a id="link-download-stl" class="btn-primary">Baixar Arquivo STL</a>
+                        <button onclick="reiniciarProcesso()" class="btn-secondary">Iniciar Novo Processo</button>
                     </div>
                 </div>
             </div>
         </section>
 
         <footer>
-            <p>🖐️ Sistema de Geração de Órteses - Desenvolvido com ❤️ para cuidado médico personalizado</p>
+            <p>Sistema de Geração de Órteses - Desenvolvido para cuidado médico personalizado</p>
         </footer>
     </div>
 
