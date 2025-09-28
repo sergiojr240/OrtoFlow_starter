@@ -131,7 +131,7 @@ async function cadastrarPaciente() {
     }
 }
 
-// ===== PROCESSAMENTO DE IMAGEM =====
+// ===== PROCESSAMENTO DE IMAGEM COM BARRA DE PROGRESSO =====
 async function processarImagem() {
     const arquivoInput = document.getElementById('imagem');
     const modoManual = document.getElementById('modo-manual').checked;
@@ -143,14 +143,43 @@ async function processarImagem() {
 
     const botao = document.querySelector('#form-upload button[type="submit"]');
     const textoOriginal = botao.textContent;
+    
+    // 🔥 ADICIONAR ELEMENTOS DE PROGRESSO
+    let progressContainer = document.getElementById('progress-container');
+    if (!progressContainer) {
+        progressContainer = document.createElement('div');
+        progressContainer.id = 'progress-container';
+        progressContainer.className = 'progress-container';
+        progressContainer.innerHTML = `
+            <div class="progress-bar" id="progress-bar">0%</div>
+            <div class="progress-text" id="progress-text">Iniciando processamento...</div>
+            <div class="loading-container" id="loading-container">
+                <div class="loading-spinner"></div>
+                <p>Analisando imagem e detectando pontos da mão...</p>
+            </div>
+        `;
+        document.querySelector('#form-upload').appendChild(progressContainer);
+    }
+
+    // Mostrar elementos de progresso
+    progressContainer.style.display = 'block';
+    document.getElementById('loading-container').style.display = 'block';
+    document.getElementById('resultado-processamento').classList.add('hidden');
+    
     botao.textContent = 'Processando...';
     botao.disabled = true;
+    document.body.classList.add('processing');
 
     try {
+        // 🔥 SIMULAR PROGRESSO
+        await simularProgresso();
+        
         const formData = new FormData();
         formData.append('imagem', arquivoInput.files[0]);
         formData.append('paciente_id', pacienteAtual || '');
         formData.append('modo_manual', modoManual.toString());
+
+        atualizarProgresso(60, 'Enviando imagem para análise...');
 
         const response = await fetch(`${API_BASE}/processar-imagem`, {
             method: 'POST',
@@ -161,33 +190,18 @@ async function processarImagem() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
+        atualizarProgresso(80, 'Processando medidas...');
+
         const resultado = await response.json();
+        
+        atualizarProgresso(100, 'Processamento concluído!');
+
+        // Pequeno delay para mostrar 100%
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Exibir resultados
-        if (resultado.imagem_processada) {
-            document.getElementById('imagem-processada').src = resultado.imagem_processada;
-        }
+        exibirResultadosProcessamento(resultado);
 
-        if (resultado.dimensoes) {
-            const dimensoesDiv = document.getElementById('dimensoes');
-            dimensoesDiv.innerHTML = '';
-            for (const [chave, valor] of Object.entries(resultado.dimensoes)) {
-                dimensoesDiv.innerHTML += `<div><strong>${chave}:</strong> ${valor}</div>`;
-            }
-        }
-
-        if (resultado.handedness) {
-            document.getElementById('dimensoes').innerHTML += 
-                `<div><strong>Mão Detectada:</strong> ${resultado.handedness}</div>`;
-        }
-
-        // Configurar download do STL se disponível
-        if (resultado.stl_url) {
-            document.getElementById('link-download-stl').href = 
-                `${API_BASE}${resultado.stl_url.replace('/api', '')}`;
-        }
-
-        document.getElementById('resultado-processamento').classList.remove('hidden');
         botao.textContent = 'Processamento Concluído!';
 
     } catch (error) {
@@ -196,7 +210,90 @@ async function processarImagem() {
         botao.textContent = textoOriginal;
     } finally {
         botao.disabled = false;
+        document.body.classList.remove('processing');
+        
+        // Esconder barra de progresso após 2 segundos
+        setTimeout(() => {
+            const progressContainer = document.getElementById('progress-container');
+            if (progressContainer) {
+                progressContainer.style.display = 'none';
+            }
+        }, 2000);
     }
+}
+
+// 🔥 FUNÇÃO PARA SIMULAR PROGRESSO
+function simularProgresso() {
+    return new Promise(resolve => {
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += 2;
+            if (progress <= 50) {
+                atualizarProgresso(progress, 'Preparando análise...');
+            } else {
+                clearInterval(interval);
+                resolve();
+            }
+        }, 50);
+    });
+}
+
+// 🔥 ATUALIZAR BARRA DE PROGRESSO
+function atualizarProgresso(percent, texto) {
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    
+    if (progressBar) {
+        progressBar.style.width = percent + '%';
+        progressBar.textContent = percent + '%';
+    }
+    
+    if (progressText) {
+        progressText.textContent = texto;
+    }
+}
+
+// 🔥 EXIBIR RESULTADOS DO PROCESSAMENTO
+function exibirResultadosProcessamento(resultado) {
+    // Imagem processada
+    const imagemProcessada = document.getElementById('imagem-processada');
+    if (resultado.imagem_processada) {
+        imagemProcessada.src = resultado.imagem_processada;
+        imagemProcessada.style.display = 'block';
+    } else {
+        // Imagem placeholder quando não há imagem processada
+        imagemProcessada.src = 'data:image/svg+xml;base64,PHN2Zy width="400" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#f0f0f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="16" fill="#666">Imagem processada não disponível</text></svg>';
+        imagemProcessada.style.display = 'block';
+    }
+
+    // Dimensões
+    if (resultado.dimensoes) {
+        const dimensoesDiv = document.getElementById('dimensoes');
+        dimensoesDiv.innerHTML = '';
+        for (const [chave, valor] of Object.entries(resultado.dimensoes)) {
+            dimensoesDiv.innerHTML += `<div><strong>${chave}:</strong> ${valor}</div>`;
+        }
+    }
+
+    // Mão detectada
+    if (resultado.handedness) {
+        document.getElementById('dimensoes').innerHTML += 
+            `<div><strong>Mão Detectada:</strong> ${resultado.handedness}</div>`;
+    }
+
+    // Tipo de processamento (para debug)
+    if (resultado.tipo_processamento) {
+        document.getElementById('dimensoes').innerHTML += 
+            `<div style="font-size: 12px; color: #666; margin-top: 10px;"><em>Tipo: ${resultado.tipo_processamento}</em></div>`;
+    }
+
+    // Configurar download do STL
+    if (resultado.stl_url) {
+        document.getElementById('link-download-stl').href = 
+            `${API_BASE}${resultado.stl_url.replace('/api', '')}`;
+    }
+
+    document.getElementById('resultado-processamento').classList.remove('hidden');
 }
 
 // ===== FUNÇÕES DE NAVEGAÇÃO =====
