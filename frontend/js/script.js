@@ -72,61 +72,59 @@ async function cadastrarPaciente() {
     botao.disabled = true;
 
     try {
-        console.log('Enviando dados para:', `${API_BASE}/cadastrar-paciente`);
+        console.log('📤 Enviando dados para API...');
         
         const response = await fetch(`${API_BASE}/cadastrar-paciente`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
+            mode: 'cors',
             body: JSON.stringify({ nome, idade, email })
         });
 
+        console.log('📥 Resposta recebida:', response.status);
+
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error('❌ Erro HTTP:', response.status, errorText);
+            throw new Error(`Erro do servidor: ${response.status} - ${errorText}`);
         }
 
         const resultado = await response.json();
-        console.log('Resposta do servidor:', resultado);
+        console.log('✅ Dados recebidos:', resultado);
 
         if (resultado.sucesso) {
+            // ... resto do código de sucesso permanece igual
             pacienteAtual = resultado.paciente_id;
             dadosPaciente = { nome, idade, email };
 
-            // Atualizar interface
             document.getElementById('paciente-id').textContent = pacienteAtual;
             document.getElementById('upload-paciente-id').value = pacienteAtual;
             document.getElementById('paciente-atual-id').textContent = pacienteAtual;
             document.getElementById('paciente-atual-nome').textContent = nome;
 
-            // QR Code real
+            // QR Code
             if (resultado.qr_code) {
                 document.getElementById('qrcode-container').innerHTML = 
-                    `<img src="${resultado.qr_code}" alt="QR Code" style="max-width: 200px; border: 1px solid #ccc;">`;
-            } else {
-                // QR Code fallback
-                document.getElementById('qrcode-container').innerHTML = 
-                    `<div style="border: 1px solid #ccc; padding: 10px; text-align: center;">
-                        <strong>ID:</strong> ${pacienteAtual}
-                    </div>`;
+                    `<img src="${resultado.qr_code}" alt="QR Code" style="max-width: 200px;">`;
             }
 
-            // Link para folha padrão
+            // Folha padrão
             if (resultado.folha_padrao_url) {
                 const linkFolha = document.getElementById('link-folha-padrao');
                 linkFolha.href = `${API_BASE}${resultado.folha_padrao_url.replace('/api', '')}`;
-                linkFolha.style.display = 'inline-block';
             }
 
             document.getElementById('resultado-cadastro').classList.remove('hidden');
             botao.textContent = 'Cadastro Concluído!';
 
         } else {
-            throw new Error(resultado.erro || 'Erro no cadastro');
+            throw new Error(resultado.erro || 'Erro desconhecido no cadastro');
         }
 
     } catch (error) {
-        console.error('Erro no cadastro:', error);
+        console.error('💥 Erro completo:', error);
         alert('Erro no cadastro: ' + error.message);
         botao.textContent = textoOriginal;
         botao.disabled = false;
