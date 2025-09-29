@@ -149,16 +149,16 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
         #c.rect(x_quad + inset, y_quad + inset, inner_size, inner_size, stroke=0, fill=1)
 
         # Gerar QR code (dados básicos) e inserir no centro do quadrado
-        #qr_payload = f"ID:{paciente_id};Nome:{nome};Idade:{idade}"
-        #qr_img = qrcode.make(qr_payload).convert("RGB")
+        qr_payload = f"ID:{paciente_id};Nome:{nome};Idade:{idade}"
+        qr_img = qrcode.make(qr_payload).convert("RGB")
         # redimensionar o QR para caber no inner_size
-        #qr_px = int(inner_size)
-        #qr_img = qr_img.resize((qr_px, qr_px))
-        #qr_buf = BytesIO()
-        #qr_img.save(qr_buf, format='PNG')
-        #qr_buf.seek(0)
-        #c.drawImage(ImageReader(qr_buf), x_quad + inset, y_quad + inset,
-        #            width=inner_size, height=inner_size, mask='auto')
+        qr_px = int(inner_size)
+        qr_img = qr_img.resize((qr_px, qr_px))
+        qr_buf = BytesIO()
+        qr_img.save(qr_buf, format='PNG')
+        qr_buf.seek(0)
+        c.drawImage(ImageReader(qr_buf), x_quad + inset, y_quad + inset,
+                    width=inner_size, height=inner_size, mask='auto')
 
         # --- Dados do paciente (superior direito) ---
         x_right = width - margin
