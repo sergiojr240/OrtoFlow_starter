@@ -8,10 +8,11 @@ from reportlab.lib.utils import ImageReader
 import qrcode
 from io import BytesIO
 import base64
+from reportlab.lib import colors
+from reportlab.lib.utils import ImageReader
 
 app = Flask(__name__)
 
-# 🔥🔥🔥 CORS NUCLEAR - PERMITE TUDO
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Configurações
@@ -19,7 +20,7 @@ UPLOAD_FOLDER = '/tmp'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# 🔥🔥🔥 MIDDLEWARE CORS MANUAL EXTREMO
+# MIDDLEWARE CORS MANUAL EXTREMO
 @app.before_request
 def before_request():
     if request.method == 'OPTIONS':
@@ -33,7 +34,7 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Credentials', 'true')
     return response
 
-# 🔥🔥🔥 ROTA CATCH-ALL PARA OPTIONS
+# ROTA CATCH-ALL PARA OPTIONS
 @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
 @app.route('/<path:path>', methods=['OPTIONS'])
 def options_handler(path):
@@ -41,9 +42,9 @@ def options_handler(path):
 
 try:
     from processamento_api import processar_imagem_ortese_api, gerar_stl_simples
-    print("✅ Módulo de processamento carregado")
+    print("Módulo de processamento carregado")
 except ImportError as e:
-    print(f"❌ Erro ao importar módulo: {e}")
+    print(f"Erro ao importar módulo: {e}")
     
     def processar_imagem_ortese_api(*args, **kwargs):
         return {"erro": "Módulo de processamento não carregado"}
@@ -79,9 +80,9 @@ def cadastrar_paciente():
         return '', 200
         
     try:
-        # 🔥 CORREÇÃO: Usar get_json() em vez de request.json
+        # CORREÇÃO: Usar get_json() em vez de request.json
         data = request.get_json(silent=True) or {}
-        print("📥 Dados recebidos:", data)
+        print("Dados recebidos:", data)
         
         nome = data.get('nome', '').strip()
         idade = data.get('idade', '').strip()
@@ -92,7 +93,7 @@ def cadastrar_paciente():
 
         # Gerar ID único
         paciente_id = 'P' + str(uuid.uuid4())[:8].upper()
-        print(f"👤 Novo paciente: {nome} - ID: {paciente_id}")
+        print(f"Novo paciente: {nome} - ID: {paciente_id}")
 
         # Gerar QR Code
         qr = qrcode.QRCode(version=1, box_size=10, border=4)
@@ -119,32 +120,103 @@ def cadastrar_paciente():
             return jsonify({'erro': 'Erro ao gerar folha padrão'}), 500
 
     except Exception as e:
-        print(f"💥 Erro no cadastro: {str(e)}")
+        print(f"Erro no cadastro: {str(e)}")
         return jsonify({'erro': f'Erro no servidor: {str(e)}'}), 500
 
 def gerar_folha_padrao(paciente_id, nome, idade, output_path):
+    """
+    Gera um PDF A4 com:
+    - Quadrado azul 6x6 cm no canto superior esquerdo com QR code dentro;
+    - Dados do paciente no canto superior direito;
+    - Régua graduada (~10cm) no canto inferior direito.
+    """
     try:
         c = canvas.Canvas(output_path, pagesize=A4)
         width, height = A4
-        
-        # Cabeçalho
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(100, height - 100, "Sistema de Geração de Órteses Personalizadas")
-        
-        # Informações do paciente
-        c.setFont("Helvetica", 12)
-        c.drawString(100, height - 140, f"Paciente: {nome}")
-        c.drawString(100, height - 160, f"Idade: {idade} anos")
-        c.drawString(100, height - 180, f"ID: {paciente_id}")
-        
+
+        # Conversão cm -> pontos (pt)
+        cm_pt = 28.3464567
+
+        margin = 20  # margem em pontos
+
+        # --- Quadrado azul 6x6cm (superior esquerdo) ---
+        quad_size = 6.0 * cm_pt
+        x_quad = margin
+        y_quad = height - margin - quad_size
+
+        # Desenhar retângulo azul preenchido
+        c.setFillColor(colors.HexColor('#0B66FF'))  # azul
+        c.rect(x_quad, y_quad, quad_size, quad_size, stroke=0, fill=1)
+
+        # Inserir uma pequena área branca interna para o QR (melhor contraste)
+        inset = 4  # pontos
+        inner_size = quad_size - 2 * inset
+        c.setFillColor(colors.white)
+        c.rect(x_quad + inset, y_quad + inset, inner_size, inner_size, stroke=0, fill=1)
+
+        # Gerar QR code (dados básicos) e inserir no centro do quadrado
+        qr_payload = f"ID:{paciente_id};Nome:{nome};Idade:{idade}"
+        qr_img = qrcode.make(qr_payload).convert("RGB")
+        # redimensionar o QR para caber no inner_size
+        qr_px = int(inner_size)
+        qr_img = qr_img.resize((qr_px, qr_px))
+        qr_buf = BytesIO()
+        qr_img.save(qr_buf, format='PNG')
+        qr_buf.seek(0)
+        c.drawImage(ImageReader(qr_buf), x_quad + inset, y_quad + inset,
+                    width=inner_size, height=inner_size, mask='auto')
+
+        # --- Dados do paciente (superior direito) ---
+        x_right = width - margin
+        y_top = height - margin - 6  # pequeno ajuste vertical
+
+        c.setFillColor(colors.black)
+        c.setFont("Helvetica-Bold", 12)
+        c.drawRightString(x_right, y_top, f"Paciente: {nome}")
+        c.setFont("Helvetica", 10)
+        c.drawRightString(x_right, y_top - 15, f"Idade: {idade} anos")
+        c.drawRightString(x_right, y_top - 30, f"ID: {paciente_id}")
+
+        # --- Régua graduada (~10 cm) no canto inferior direito ---
+        ruler_cm = 10.0
+        ruler_w = ruler_cm * cm_pt
+        ruler_x = width - margin - ruler_w
+        ruler_y = margin + 20  # eleva um pouco do rodapé
+
+        # Linha principal
+        c.setLineWidth(1)
+        c.line(ruler_x, ruler_y, ruler_x + ruler_w, ruler_y)
+
+        # Ticks e legendas
+        for i in range(11):  # 0..10 (11 marcas)
+            x_tick = ruler_x + (i * (ruler_w / 10.0))
+            # marca maior a cada 5 (0cm e 5cm e 10cm)
+            if i % 5 == 0:
+                tick_h = 12
+                c.line(x_tick, ruler_y, x_tick, ruler_y + tick_h)
+                # label numérico (centro/baixo da marca)
+                c.setFont("Helvetica", 8)
+                c.drawCentredString(x_tick, ruler_y + tick_h + 2, str(i))
+            else:
+                tick_h = 6
+                c.line(x_tick, ruler_y, x_tick, ruler_y + tick_h)
+
+        # legenda "cm" no final
+        c.setFont("Helvetica", 8)
+        c.drawRightString(ruler_x + ruler_w, ruler_y + 22, "cm")
+
+        # Rodapé informativo
+        c.setFont("Helvetica", 8)
+        c.drawString(margin, 10, "Imprima em escala 100% (sem ajuste 'Ajustar à página') para garantir precisão da régua.")
+
+        c.showPage()
         c.save()
-        print(f"📄 Folha gerada: {output_path}")
         return True
-        
+
     except Exception as e:
         print(f"Erro gerando folha: {e}")
-        return False
-
+        return False   
+        
 @app.route('/api/baixar-folha/<paciente_id>', methods=['GET', 'OPTIONS'])
 def baixar_folha(paciente_id):
     if request.method == 'OPTIONS':

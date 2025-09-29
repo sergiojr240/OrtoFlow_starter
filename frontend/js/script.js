@@ -53,6 +53,36 @@ function inicializarEventos() {
             }
         });
     }
+	
+	    // Botão "Já tenho a imagem" (no cadastro)
+    const btnJaTenho = document.getElementById('btn-ja-tenho-imagem');
+    if (btnJaTenho) {
+        btnJaTenho.addEventListener('click', function (e) {
+            e.preventDefault();
+            // Se já temos pacienteAtual (ID gerado), mantemos; senão, solicitar opcionalmente
+            if (!pacienteAtual) {
+                const idInformado = prompt('Se já possuir o ID do paciente, informe aqui (opcional). Caso contrário, clique em Cancelar para prosseguir sem ID.');
+                if (idInformado && idInformado.trim() !== '') {
+                    pacienteAtual = idInformado.trim().toUpperCase();
+                    // atualizar visuais (caso existam elementos)
+                    const elId = document.getElementById('paciente-id');
+                    if (elId) elId.textContent = pacienteAtual;
+                    const uploadHidden = document.getElementById('upload-paciente-id');
+                    if (uploadHidden) uploadHidden.value = pacienteAtual;
+                    const atualId = document.getElementById('paciente-atual-id');
+                    if (atualId) atualId.textContent = pacienteAtual;
+                }
+            }
+            // Avançar para etapa de upload
+            avancarParaUpload();
+            // abrir seletor de arquivo automaticamente (pequeno delay para permitir a transição visual)
+            setTimeout(() => {
+                const inputImagem = document.getElementById('imagem');
+                if (inputImagem) inputImagem.click();
+            }, 300);
+        });
+    }
+
 }
 
 // ===== CADASTRO DE PACIENTE =====
@@ -123,7 +153,7 @@ async function cadastrarPaciente() {
         }
 
     } catch (error) {
-        console.error('💥 Erro completo:', error);
+        console.error('Erro completo:', error);
         alert('Erro no cadastro: ' + error.message);
         botao.textContent = textoOriginal;
         botao.disabled = false;
