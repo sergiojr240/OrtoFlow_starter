@@ -124,12 +124,6 @@ def cadastrar_paciente():
         return jsonify({'erro': f'Erro no servidor: {str(e)}'}), 500
 
 def gerar_folha_padrao(paciente_id, nome, idade, output_path):
-    """
-    Gera um PDF A4 com:
-    - Quadrado azul 6x6 cm no canto superior esquerdo com QR code dentro;
-    - Dados do paciente no canto superior direito;
-    - Régua graduada (~10cm) no canto inferior direito.
-    """
     try:
         c = canvas.Canvas(output_path, pagesize=A4)
         width, height = A4
@@ -149,22 +143,22 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
         c.rect(x_quad, y_quad, quad_size, quad_size, stroke=0, fill=1)
 
         # Inserir uma pequena área branca interna para o QR (melhor contraste)
-        inset = 4  # pontos
-        inner_size = quad_size - 2 * inset
-        c.setFillColor(colors.white)
-        c.rect(x_quad + inset, y_quad + inset, inner_size, inner_size, stroke=0, fill=1)
+        #inset = 4  # pontos
+        #inner_size = quad_size - 2 * inset
+        #c.setFillColor(colors.white)
+        #c.rect(x_quad + inset, y_quad + inset, inner_size, inner_size, stroke=0, fill=1)
 
         # Gerar QR code (dados básicos) e inserir no centro do quadrado
-        qr_payload = f"ID:{paciente_id};Nome:{nome};Idade:{idade}"
-        qr_img = qrcode.make(qr_payload).convert("RGB")
+        #qr_payload = f"ID:{paciente_id};Nome:{nome};Idade:{idade}"
+        #qr_img = qrcode.make(qr_payload).convert("RGB")
         # redimensionar o QR para caber no inner_size
-        qr_px = int(inner_size)
-        qr_img = qr_img.resize((qr_px, qr_px))
-        qr_buf = BytesIO()
-        qr_img.save(qr_buf, format='PNG')
-        qr_buf.seek(0)
-        c.drawImage(ImageReader(qr_buf), x_quad + inset, y_quad + inset,
-                    width=inner_size, height=inner_size, mask='auto')
+        #qr_px = int(inner_size)
+        #qr_img = qr_img.resize((qr_px, qr_px))
+        #qr_buf = BytesIO()
+        #qr_img.save(qr_buf, format='PNG')
+        #qr_buf.seek(0)
+        #c.drawImage(ImageReader(qr_buf), x_quad + inset, y_quad + inset,
+        #            width=inner_size, height=inner_size, mask='auto')
 
         # --- Dados do paciente (superior direito) ---
         x_right = width - margin
@@ -331,7 +325,7 @@ if __name__ == '__main__':
     print(f"Servidor iniciando na porta {port}")
     print("CORS CONFIGURADO - PERMITINDO TUDO")
     print("URLs testáveis:")
-    print(f"   - https://ortese-backend.onrender.com/")
-    print(f"   - https://ortese-backend.onrender.com/api/health")
-    print(f"   - https://ortese-backend.onrender.com/health")
+    print(f"   - https://ortoflow-backend.onrender.com/")
+    print(f"   - https://ortoflow-backend.onrender.com/api/health")
+    print(f"   - https://ortoflow-backend.onrender.com/health")
     app.run(host='0.0.0.0', port=port, debug=False)
