@@ -13,7 +13,7 @@ from reportlab.lib.utils import ImageReader
 
 app = Flask(__name__)
 
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 # Configurações
 UPLOAD_FOLDER = '/tmp'
@@ -225,7 +225,7 @@ def baixar_folha(paciente_id):
     try:
         folha_path = os.path.join(app.config['UPLOAD_FOLDER'], f'folha_{paciente_id}.pdf')
         if os.path.exists(folha_path):
-            return send_file(folha_path, as_attachment=True, download_name=f'folha_referencia_{paciente_id}.pdf')
+            return send_file(folha_path, as_attachment=True, download_name=f'folha_{paciente_id}.pdf')
         return jsonify({'erro': 'Folha não encontrada'}), 404
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
@@ -247,32 +247,32 @@ def processar_imagem():
         if arquivo.filename == '':
             return jsonify({'erro': 'Nome de arquivo vazio'}), 400
 
-        print(f"📸 Processando imagem real para paciente: {paciente_id}")
+        print(f"Processando imagem real para paciente: {paciente_id}")
 
         # Ler imagem
         imagem_bytes = arquivo.read()
         
-        # 🔥 TENTAR PROCESSAMENTO REAL
+        # TENTAR PROCESSAMENTO REAL
         try:
             if 'processar_imagem_ortese_api' in globals():
                 resultado = processar_imagem_ortese_api(imagem_bytes, modo_manual)
                 if 'erro' not in resultado:
-                    print("✅ Processamento real bem-sucedido")
+                    print("Processamento real bem-sucedido")
                 else:
-                    print("❌ Processamento real falhou, usando simulação")
+                    print("Processamento real falhou, usando simulação")
                     resultado = processamento_simulado()
             else:
-                print("🔧 Módulo não disponível, usando simulação")
+                print("Módulo não disponível, usando simulação")
                 resultado = processamento_simulado()
                 
         except Exception as e:
-            print(f"⚠️ Erro no processamento real: {e}")
+            print(f"Erro no processamento real: {e}")
             resultado = processamento_simulado()
 
         return jsonify(resultado)
         
     except Exception as e:
-        print(f"💥 Erro no processamento: {str(e)}")
+        print(f"Erro no processamento: {str(e)}")
         return jsonify({'erro': f'Erro no processamento: {str(e)}'}), 500
 
 def processamento_simulado():
@@ -328,9 +328,9 @@ def download_stl(paciente_id):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"🚀 Servidor iniciando na porta {port}")
-    print("🔧 CORS CONFIGURADO - PERMITINDO TUDO")
-    print("🌐 URLs testáveis:")
+    print(f"Servidor iniciando na porta {port}")
+    print("CORS CONFIGURADO - PERMITINDO TUDO")
+    print("URLs testáveis:")
     print(f"   - https://ortese-backend.onrender.com/")
     print(f"   - https://ortese-backend.onrender.com/api/health")
     print(f"   - https://ortese-backend.onrender.com/health")
