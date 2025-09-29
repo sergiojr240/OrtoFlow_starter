@@ -72,7 +72,7 @@ async function cadastrarPaciente() {
     botao.disabled = true;
 
     try {
-        console.log('📤 Enviando dados para API...');
+        console.log('Enviando dados para API...');
         
         const response = await fetch(`${API_BASE}/cadastrar-paciente`, {
             method: 'POST',
@@ -83,19 +83,18 @@ async function cadastrarPaciente() {
             body: JSON.stringify({ nome, idade, email })
         });
 
-        console.log('📥 Resposta recebida:', response.status);
+        console.log('Resposta recebida:', response.status);
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Erro HTTP:', response.status, errorText);
+            console.error('Erro HTTP:', response.status, errorText);
             throw new Error(`Erro do servidor: ${response.status} - ${errorText}`);
         }
 
         const resultado = await response.json();
-        console.log('✅ Dados recebidos:', resultado);
+        console.log('Dados recebidos:', resultado);
 
         if (resultado.sucesso) {
-            // ... resto do código de sucesso permanece igual
             pacienteAtual = resultado.paciente_id;
             dadosPaciente = { nome, idade, email };
 
@@ -144,7 +143,7 @@ async function processarImagem() {
     const botao = document.querySelector('#form-upload button[type="submit"]');
     const textoOriginal = botao.textContent;
     
-    // 🔥 ADICIONAR ELEMENTOS DE PROGRESSO
+    //ADICIONAR ELEMENTOS DE PROGRESSO
     let progressContainer = document.getElementById('progress-container');
     if (!progressContainer) {
         progressContainer = document.createElement('div');
@@ -171,7 +170,7 @@ async function processarImagem() {
     document.body.classList.add('processing');
 
     try {
-        // 🔥 SIMULAR PROGRESSO
+        //SIMULAR PROGRESSO
         await simularProgresso();
         
         const formData = new FormData();
@@ -196,7 +195,6 @@ async function processarImagem() {
         
         atualizarProgresso(100, 'Processamento concluído!');
 
-        // Pequeno delay para mostrar 100%
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Exibir resultados
@@ -222,7 +220,7 @@ async function processarImagem() {
     }
 }
 
-// 🔥 FUNÇÃO PARA SIMULAR PROGRESSO
+//FUNÇÃO PARA SIMULAR PROGRESSO
 function simularProgresso() {
     return new Promise(resolve => {
         let progress = 0;
@@ -238,7 +236,7 @@ function simularProgresso() {
     });
 }
 
-// 🔥 ATUALIZAR BARRA DE PROGRESSO
+//ATUALIZAR BARRA DE PROGRESSO
 function atualizarProgresso(percent, texto) {
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
@@ -253,7 +251,7 @@ function atualizarProgresso(percent, texto) {
     }
 }
 
-// 🔥 EXIBIR RESULTADOS DO PROCESSAMENTO
+//EXIBIR RESULTADOS DO PROCESSAMENTO
 function exibirResultadosProcessamento(resultado) {
     // Imagem processada
     const imagemProcessada = document.getElementById('imagem-processada');

@@ -1,4 +1,3 @@
-# processamento_api.py - VERSÃO CORRIGIDA
 import cv2 as cv
 import numpy as np
 import mediapipe as mp
@@ -109,7 +108,7 @@ def obter_pontos_padrao(altura, largura):
     ]
 
 def detectar_landmarks_manual(imagem, escala_px_cm=None):
-    """Detecta landmarks manualmente - VERSÃO CORRIGIDA"""
+    """Detecta landmarks manualmente"""
     try:
         altura, largura = imagem.shape[:2]
         pontos = obter_pontos_padrao(altura, largura)
@@ -135,7 +134,7 @@ def detectar_landmarks_manual(imagem, escala_px_cm=None):
         return None, None, None
 
 def desenhar_landmarks(imagem, landmarks, resultados_mp=None):
-    """Desenha landmarks na imagem - VERSÃO CORRIGIDA"""
+    """Desenha landmarks na imagem"""
     try:
         imagem_com_contorno = imagem.copy()
         
@@ -253,7 +252,7 @@ def calcular_dimensoes(landmarks, escala_px_cm, imagem_shape):
         return None
 
 def imagem_para_base64(imagem):
-    """Converte imagem OpenCV para base64 - VERSÃO CORRIGIDA"""
+    """Converte imagem OpenCV para base64"""
     try:
         # CORREÇÃO: Verificar se a imagem é válida
         if imagem is None or imagem.size == 0:
@@ -318,7 +317,7 @@ def gerar_stl_simples(dimensoes, handedness, output_path):
 
 def processar_imagem_ortese_api(imagem_bytes, modo_manual=False):
     """
-    Função principal para processamento de imagem - VERSÃO CORRIGIDA
+    Função principal para processamento de imagem
     """
     try:
         print("🔍 Iniciando processamento da imagem...")
@@ -331,7 +330,7 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False):
         if imagem is None:
             return {"erro": "Não foi possível carregar a imagem a partir dos bytes"}
         
-        print(f"✅ Imagem carregada: {imagem.shape[1]}x{imagem.shape[0]} pixels")
+        print(f"Imagem carregada: {imagem.shape[1]}x{imagem.shape[0]} pixels")
         
         # Detectar quadrado azul para escala
         contorno_quadrado, dimensoes_quadrado, _ = detectar_quadrado_azul(imagem)
@@ -339,10 +338,10 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False):
         if contorno_quadrado is not None:
             x, y, w, h = dimensoes_quadrado
             escala_px_cm = (w + h) / (2 * TAMANHO_QUADRADO_CM)
-            print(f"✅ Quadrado detectado. Escala: {escala_px_cm:.2f} px/cm")
+            print(f"Quadrado detectado. Escala: {escala_px_cm:.2f} px/cm")
         else:
             escala_px_cm = 67.92  # Fallback
-            print(f"⚠️ Quadrado não detectado. Usando escala padrão: {escala_px_cm} px/cm")
+            print(f"Quadrado não detectado. Usando escala padrão: {escala_px_cm} px/cm")
         
         # Detectar landmarks
         landmarks, handedness, resultados_mp = None, None, None
@@ -359,8 +358,8 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False):
         if landmarks is None or len(landmarks) == 0:
             return {"erro": "Não foi possível detectar landmarks da mão"}
         
-        print(f"✅ Landmarks detectados: {len(landmarks)} pontos")
-        print(f"✅ Mão detectada: {handedness}")
+        print(f"Landmarks detectados: {len(landmarks)} pontos")
+        print(f"Mão detectada: {handedness}")
         
         # Processar imagem com landmarks
         imagem_processada = desenhar_landmarks(imagem, landmarks, resultados_mp)
@@ -371,7 +370,7 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False):
         if dimensoes is None:
             return {"erro": "Não foi possível calcular dimensões da mão"}
         
-        print("✅ Dimensões calculadas com sucesso")
+        print("Dimensões calculadas com sucesso")
         
         # Converter imagem processada para base64
         imagem_base64 = imagem_para_base64(imagem_processada)
@@ -387,9 +386,9 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False):
             "escala_px_cm": round(escala_px_cm, 2)
         }
         
-        print("🎉 Processamento concluído com sucesso!")
+        print("Processamento concluído com sucesso!")
         return resultado
         
     except Exception as e:
-        print(f"💥 Erro no processamento: {str(e)}")
+        print(f"Erro no processamento: {str(e)}")
         return {"erro": f"Erro no processamento: {str(e)}"}
