@@ -40,16 +40,22 @@ def after_request(response):
 def options_handler(path):
     return '', 200
 
+import importlib.util
+
+# Caminho para o modelo STL base fornecido pelo usuário
+# Certifique-se de que este arquivo esteja acessível no ambiente de execução
+MODELO_BASE_STL_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'upload', 'wristband_2.0(1).stl')
+
+# Carregar módulo de processamento
 try:
-    from processamento_api import processar_imagem_ortese_api, gerar_stl_simples
-    print("Módulo de processamento carregado")
-except ImportError as e:
-    print(f"Erro ao importar módulo: {e}")
-    
-    def processar_imagem_ortese_api(*args, **kwargs):
-        return {"erro": "Módulo de processamento não carregado"}
-    def gerar_stl_simples(*args, **kwargs):
-        return False
+    spec = importlib.util.spec_from_file_location("processamento",
+                                                 os.path.join(os.path.dirname(__file__), "processamento_api.py"))
+    processamento = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(processamento)
+    print("Módulo de processamento carregado com sucesso")
+except Exception as e:
+    print(f"Erro ao carregar módulo de processamento: {e}")
+    processamento = None
 
 # ===== ROTAS PRINCIPAIS =====
 @app.route('/')
@@ -246,62 +252,57 @@ def processar_imagem():
         # Ler imagem
         imagem_bytes = arquivo.read()
         
-        # TENTAR PROCESSAMENTO REAL
         try:
-            if 'processar_imagem_ortese_api' in globals():
-                resultado = processar_imagem_ortese_api(imagem_bytes, modo_manual)
-                if 'erro' not in resultado:
-                    print("Processamento real bem-sucedido")
-                else:
-                    print("Processamento real falhou, usando simulação")
-                    resultado = processamento_simulado()
-            else:
-                print("Módulo não disponível, usando simulação")
-                resultado = processamento_simulado()
-                
-        except Exception as e:
-            print(f"Erro no processamento real: {e}")
-            resultado = processamento_simulado()
+            if processamento is None:
+                return jsonify({"erro": "Módulo de processamento não disponível"}), 500
+            
+            # Chamar a função processar_imagem_ortese_api do módulo processamento_api
+            resultado_processamento = processamento.processar_imagem_ortese_api(
+                imagem_bytes=imagem_bytes,
+                modo_manual=modo_manual,
+                modelo_base_stl_path=MODELO_BASE_STL_PATH # Passar o caminho do modelo STL base
+            )
 
-        return jsonify(resultado)
+            if resultado_processamento.get("erro"):
+                return jsonify({"erro": resultado_processamento["erro"]}), 500
+
+            # Salvar imagem processada (base64 decodificada)
+            imagem_processada_base64 = resultado_processamento.get("imagem_processada")
+            if imagem_processada_base64:
+                # Remover o prefixo 'data:image/jpeg;base64,'
+                header, encoded = imagem_processada_base64.split(",", 1)
+                img_bytes = base64.b64decode(encoded)
+                img_processada_path = os.path.join(app.config["UPLOAD_FOLDER"], f'{paciente_id}_processada.jpg')
+                with open(img_processada_path, 'wb') as f:
+                    f.write(img_bytes)
+            else:
+                img_processada_path = None
+
+            # O caminho do STL é retornado diretamente agora
+            caminho_stl = resultado_processamento.get("stl_path")
+            if caminho_stl:
+                # Renomear o STL gerado para o nome esperado pela rota de download
+                final_stl_path = os.path.join(app.config["UPLOAD_FOLDER"], f'ortese_gerada_{paciente_id}.stl')
+                os.rename(caminho_stl, final_stl_path)
+                caminho_stl_url = f'/api/download-stl/{paciente_id}'
+            else:
+                caminho_stl_url = None
+
+            return jsonify({
+                'sucesso': True,
+                'dimensoes': resultado_processamento['dimensoes'],
+                'handedness': resultado_processamento['handedness'],
+                'imagem_processada_url': f'/api/imagem-processada/{paciente_id}' if img_processada_path else None,
+                'stl_url': caminho_stl_url
+            })
+
+        except Exception as e:
+            return jsonify({'erro': f'Erro no processamento: {str(e)}'}), 500
         
     except Exception as e:
         print(f"Erro no processamento: {str(e)}")
         return jsonify({'erro': f'Erro no processamento: {str(e)}'}), 500
 
-def processamento_simulado():
-    """Simulação de processamento quando o módulo real não está disponível"""
-    import random
-    
-    # Gerar medidas realistas com alguma variação
-    largura_pulso = round(5.5 + random.random() * 2, 1)  # 5.5-7.5 cm
-    largura_palma = round(7.0 + random.random() * 3, 1)  # 7.0-10.0 cm
-    comprimento_mao = round(16.0 + random.random() * 5, 1)  # 16.0-21.0 cm
-    
-    # Determinar tamanho da órtese
-    if largura_palma < 7.5:
-        tamanho_ortese = "P"
-    elif largura_palma < 9.0:
-        tamanho_ortese = "M"
-    else:
-        tamanho_ortese = "G"
-    
-    # Determinar mão (direita/esquerda) baseado em aleatório
-    handedness = "Direita" if random.random() > 0.5 else "Esquerda"
-    
-    return {
-        'sucesso': True,
-        'dimensoes': {
-            'Largura Pulso': f'{largura_pulso} cm',
-            'Largura Palma': f'{largura_palma} cm',
-            'Comprimento Mao': f'{comprimento_mao} cm',
-            'Tamanho Ortese': tamanho_ortese
-        },
-        'handedness': handedness,
-        'imagem_processada': None,  # Será preenchida se disponível
-        'mensagem': 'Processamento concluído com sucesso',
-        'tipo_processamento': 'simulado'  # Para debug
-    }
 
 @app.route('/api/download-stl/<paciente_id>', methods=['GET', 'OPTIONS'])
 def download_stl(paciente_id):
@@ -309,14 +310,9 @@ def download_stl(paciente_id):
         return '', 200
         
     try:
-        # Simular arquivo STL
-        stl_path = os.path.join(app.config['UPLOAD_FOLDER'], f'ortese_{paciente_id}.stl')
-        
-        # Criar arquivo STL vazio para teste
-        with open(stl_path, 'w') as f:
-            f.write(f"# STL simulado para paciente {paciente_id}")
-            
-        return send_file(stl_path, as_attachment=True, download_name=f'ortese_{paciente_id}.stl')
+        stl_path = os.path.join(app.config["UPLOAD_FOLDER"], f'ortese_gerada_{paciente_id}.stl')
+        if os.path.exists(stl_path):
+            return send_file(stl_path, as_attachment=True, download_name=f'ortese_gerada_{paciente_id}.stl')
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
 
