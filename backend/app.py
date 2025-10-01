@@ -154,7 +154,7 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
         qr.make(fit=True)
         
         # Criar QR code sem fundo branco
-        qr_img = qr.make_image(fill_color="black", back_color=None)  # back_color=None para fundo transparente
+        qr_img = qr.make_image(fill_color="black", back_color="#0B66FFS")  # back_color=None para fundo transparente
         qr_img = qr_img.convert("RGBA")
         
         # Redimensionar QR code para caber dentro do quadrado azul
@@ -259,7 +259,7 @@ def processar_imagem():
         
         # 🔥 USAR PROCESSAMENTO MELHORADO
         try:
-            resultado = processar_imagem_ortese_api(imagem_bytes, modo_manual)
+            resultado = processar_imagem_ortese_api_melhorado(imagem_bytes, modo_manual)
             
             if resultado.get('sucesso'):
                 print("✅ Processamento melhorado bem-sucedido!")
