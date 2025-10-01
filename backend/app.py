@@ -322,7 +322,6 @@ def processamento_simulado():
         'tipo_processamento': 'simulado'  # Para debug
     }
 
-
 @app.route('/api/download-stl/<paciente_id>', methods=['GET', 'OPTIONS'])
 def download_stl(paciente_id):
     if request.method == 'OPTIONS':
@@ -334,6 +333,36 @@ def download_stl(paciente_id):
             return send_file(stl_path, as_attachment=True, download_name=f'ortese_gerada_{paciente_id}.stl')
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
+
+# Teste simples - adicione esta rota para debug
+@app.route('/api/teste-processamento', methods=['GET'])
+def teste_processamento():
+    """Rota para testar se o processamento está funcionando"""
+    try:
+        print("🧪 Testando processamento...")
+        
+        # Verificar se o módulo foi carregado
+        if processamento is None:
+            return jsonify({"status": "erro", "mensagem": "Módulo de processamento não carregado"})
+        
+        # Verificar funções disponíveis
+        funcoes = [func for func in dir(processamento) if not func.startswith('_')]
+        print(f"📋 Funções disponíveis: {funcoes}")
+        
+        # Testar detecção de quadrado azul
+        if hasattr(processamento, 'detectar_quadrado_azul'):
+            print("✅ Função detectar_quadrado_azul disponível")
+        else:
+            print("❌ Função detectar_quadrado_azul não disponível")
+            
+        return jsonify({
+            "status": "sucesso",
+            "modulo_carregado": processamento is not None,
+            "funcoes_disponiveis": funcoes
+        })
+        
+    except Exception as e:
+        return jsonify({"status": "erro", "mensagem": str(e)})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
