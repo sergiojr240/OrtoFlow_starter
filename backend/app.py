@@ -259,7 +259,7 @@ def processar_imagem():
         
         # 🔥 USAR PROCESSAMENTO MELHORADO
         try:
-            resultado = processar_imagem_ortese_api_melhorado(imagem_bytes, modo_manual)
+            resultado = processar_imagem_ortese_api(imagem_bytes, modo_manual)
             
             if resultado.get('sucesso'):
                 print("✅ Processamento melhorado bem-sucedido!")
