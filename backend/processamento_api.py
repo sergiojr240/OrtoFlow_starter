@@ -274,7 +274,7 @@ def desenhar_medidas_com_contorno(imagem, landmarks, dimensoes, contorno_mao, po
     
     return img_com_medidas
 
-def pipeline_processamento_melhorado(caminho_imagem, caminho_stl_saida=None, modo_manual=False):
+def pipeline_processamento_ortese(caminho_imagem, caminho_stl_saida=None, modo_manual=False):
     """
     Pipeline melhorado com detecção de contorno da mão
     """
@@ -382,7 +382,6 @@ def pipeline_processamento_melhorado(caminho_imagem, caminho_stl_saida=None, mod
     print("✅ Pipeline concluído com sucesso!")
     return caminho_stl_saida, imagem_resultado, None, dimensoes, handedness
 
-# Função para integrar com a API existente
 def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl_path=None):
     try:
         # Converter bytes para imagem
