@@ -21,7 +21,7 @@ mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
-def detectar_quadrado_azul_melhorado(imagem, debug=False):
+def detectar_quadrado_azul(imagem, debug=False):
     """
     Detecção melhorada do quadrado azul que ignora o QR code
     """
@@ -386,7 +386,7 @@ def pipeline_processamento_ortese(caminho_imagem, caminho_stl_saida=None, modo_m
     return caminho_stl_saida, imagem_resultado, None, dimensoes, handedness
 
 # Função para integrar com a API existente
-def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl_path=None):
+def processar_imagem_ortese_api (imagem_bytes, modo_manual=False, modelo_base_stl_path=None):
     """
     Versão melhorada para a API
     """
@@ -403,7 +403,7 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         cv.imwrite(temp_img_path, imagem)
         
         # Processar
-        caminho_stl, imagem_processada, _, dimensoes, handedness = pipeline_processamento_melhorado(
+        caminho_stl, imagem_processada, _, dimensoes, handedness = pipeline_processamento_ortese(
             temp_img_path, modo_manual=modo_manual)
         
         # Limpar
