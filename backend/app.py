@@ -136,7 +136,6 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
 
         # Conversão cm -> pontos (pt)
         cm_pt = 28.3464567
-
         margin = 20  # margem em pontos
 
         # --- Quadrado azul 6x6cm (superior esquerdo) ---
@@ -144,31 +143,37 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
         x_quad = margin
         y_quad = height - margin - quad_size
 
-        # Desenhar retângulo azul preenchido
+        # Desenhar retângulo azul preenchido (SEM área branca interna)
         c.setFillColor(colors.HexColor('#0B66FF'))  # azul
         c.rect(x_quad, y_quad, quad_size, quad_size, stroke=0, fill=1)
 
-        # Inserir uma pequena área branca interna para o QR (melhor contraste)
-        inset = 4  # pontos
-        inner_size = quad_size - 2 * inset
-        c.setFillColor(colors.white)
-        c.rect(x_quad + inset, y_quad + inset, inner_size, inner_size, stroke=0, fill=1)
-
-        # Gerar QR code (dados básicos) e inserir no centro do quadrado
+        # --- QR code SEM fundo branco ---
         qr_payload = f"ID:{paciente_id};Nome:{nome};Idade:{idade}"
-        qr_img = qrcode.make(qr_payload).convert("RGB")
-        # redimensionar o QR para caber no inner_size
-        qr_px = int(inner_size)
-        qr_img = qr_img.resize((qr_px, qr_px))
-        qr_buf = BytesIO()
-        qr_img.save(qr_buf, format='PNG')
-        qr_buf.seek(0)
-        c.drawImage(ImageReader(qr_buf), x_quad + inset, y_quad + inset,
-                    width=inner_size, height=inner_size, mask='auto')
+        qr = qrcode.QRCode(version=1, box_size=10, border=1)
+        qr.add_data(qr_payload)
+        qr.make(fit=True)
+        
+        # Criar QR code sem fundo branco
+        qr_img = qr.make_image(fill_color="black", back_color=None)  # back_color=None para fundo transparente
+        qr_img = qr_img.convert("RGBA")
+        
+        # Redimensionar QR code para caber dentro do quadrado azul
+        qr_size = int(quad_size * 0.7)  # 70% do tamanho do quadrado
+        qr_img = qr_img.resize((qr_size, qr_size))
+        
+        # Salvar QR code temporariamente
+        qr_buffer = BytesIO()
+        qr_img.save(qr_buffer, format='PNG')
+        qr_buffer.seek(0)
+        
+        # Posicionar QR code no centro do quadrado azul
+        qr_x = x_quad + (quad_size - qr_size) / 2
+        qr_y = y_quad + (quad_size - qr_size) / 2
+        c.drawImage(ImageReader(qr_buffer), qr_x, qr_y, width=qr_size, height=qr_size, mask='auto')
 
         # --- Dados do paciente (superior direito) ---
         x_right = width - margin
-        y_top = height - margin - 6  # pequeno ajuste vertical
+        y_top = height - margin - 6
 
         c.setFillColor(colors.black)
         c.setFont("Helvetica-Bold", 12)
@@ -181,7 +186,7 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
         ruler_cm = 10.0
         ruler_w = ruler_cm * cm_pt
         ruler_x = width - margin - ruler_w
-        ruler_y = margin + 20  # eleva um pouco do rodapé
+        ruler_y = margin + 20
 
         # Linha principal
         c.setLineWidth(1)
@@ -215,7 +220,7 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
 
     except Exception as e:
         print(f"Erro gerando folha: {e}")
-        return False   
+        return False
         
 @app.route('/api/baixar-folha/<paciente_id>', methods=['GET', 'OPTIONS'])
 def baixar_folha(paciente_id):
@@ -247,46 +252,23 @@ def processar_imagem():
         if arquivo.filename == '':
             return jsonify({'erro': 'Nome de arquivo vazio'}), 400
 
-        print(f"📸 Processando imagem real para paciente: {paciente_id}")
+        print(f"📸 Processando imagem com método melhorado...")
 
         # Ler imagem
         imagem_bytes = arquivo.read()
         
-        # CORREÇÃO: Usar processamento real com modelo base
+        # 🔥 USAR PROCESSAMENTO MELHORADO
         try:
-            # Definir caminho do modelo base
-            modelo_base_path = os.path.join(os.path.dirname(__file__), 'models', 'ortese_template.stl')
+            resultado = processar_imagem_ortese_api_melhorado(imagem_bytes, modo_manual)
             
-            # Criar diretório se não existir
-            os.makedirs(os.path.dirname(modelo_base_path), exist_ok=True)
-            
-            if processamento and hasattr(processamento, 'processar_imagem_ortese_api'):
-                resultado = processamento.processar_imagem_ortese_api(
-                    imagem_bytes, 
-                    modo_manual, 
-                    modelo_base_path
-                )
-                
-                # CORREÇÃO: Se STL foi gerado, criar link para download
-                if resultado.get('sucesso') and resultado.get('stl_path'):
-                    stl_filename = f'ortese_gerada_{paciente_id}.stl'
-                    stl_final_path = os.path.join(app.config['UPLOAD_FOLDER'], stl_filename)
-                    
-                    # Mover/copiar o STL gerado para a pasta de uploads
-                    import shutil
-                    shutil.copy2(resultado['stl_path'], stl_final_path)
-                    
-                    # Adicionar URL para download no resultado
-                    resultado['stl_url'] = f'/api/download-stl/{paciente_id}'
-                    
+            if resultado.get('sucesso'):
+                print("✅ Processamento melhorado bem-sucedido!")
             else:
-                print("🔧 Módulo não disponível, usando simulação")
+                print("❌ Processamento melhorado falhou, usando fallback")
                 resultado = processamento_simulado()
                 
         except Exception as e:
-            print(f"⚠️ Erro no processamento real: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"⚠️ Erro no processamento melhorado: {e}")
             resultado = processamento_simulado()
 
         return jsonify(resultado)
