@@ -144,7 +144,7 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
         y_quad = height - margin - quad_size
 
         # Desenhar retângulo azul preenchido (SEM área branca interna)
-        c.setFillColor(colors.HexColor('#0B66FF'))  # azul
+        c.setFillColor(colors.HexColor('#0000FE'))  # azul
         c.rect(x_quad, y_quad, quad_size, quad_size, stroke=0, fill=1)
 
         # --- QR code SEM fundo branco ---
@@ -252,23 +252,34 @@ def processar_imagem():
         if arquivo.filename == '':
             return jsonify({'erro': 'Nome de arquivo vazio'}), 400
 
-        print(f"📸 Processando imagem com método melhorado...")
+        print(f"📸 Processando imagem para paciente: {paciente_id}")
 
         # Ler imagem
         imagem_bytes = arquivo.read()
         
-        # 🔥 USAR PROCESSAMENTO MELHORADO
+        # 🔥 TENTAR PROCESSAMENTO EXISTENTE PRIMEIRO
         try:
-            resultado = processar_imagem_ortese_api_melhorado(imagem_bytes, modo_manual)
-            
-            if resultado.get('sucesso'):
-                print("✅ Processamento melhorado bem-sucedido!")
+            if processamento and hasattr(processamento, 'processar_imagem_ortese_api'):
+                print("🔄 Usando processamento existente...")
+                resultado = processamento.processar_imagem_ortese_api(
+                    imagem_bytes, 
+                    modo_manual,
+                    MODELO_BASE_STL_PATH
+                )
+                
+                if resultado.get('sucesso'):
+                    print("✅ Processamento existente bem-sucedido")
+                else:
+                    print("❌ Processamento existente falhou, usando simulação")
+                    resultado = processamento_simulado()
             else:
-                print("❌ Processamento melhorado falhou, usando fallback")
+                print("🔧 Módulo não disponível, usando simulação")
                 resultado = processamento_simulado()
                 
         except Exception as e:
-            print(f"⚠️ Erro no processamento melhorado: {e}")
+            print(f"⚠️ Erro no processamento existente: {e}")
+            import traceback
+            traceback.print_exc()
             resultado = processamento_simulado()
 
         return jsonify(resultado)
