@@ -26,36 +26,50 @@ def detectar_quadrado_azul(imagem):
     """Detecta quadrado azul na imagem e retorna o contorno, dimensões e a máscara."""
     try:
         imagem_hsv = cv.cvtColor(imagem, cv.COLOR_BGR2HSV)
-        mascara = cv.inRange(imagem_hsv, LOWER_BLUE, UPPER_BLUE)
         
-        kernel = np.ones((7, 7), np.uint8)
-        mascara = cv.morphologyEx(mascara, cv.MORPH_OPEN, kernel, iterations=2)
+        # CORREÇÃO: Ajustar faixa de cor para azul
+        lower_blue = np.array([90, 100, 50])   # Azul mais escuro
+        upper_blue = np.array([130, 255, 255]) # Azul mais claro
+        
+        mascara = cv.inRange(imagem_hsv, lower_blue, upper_blue)
+        
+        # CORREÇÃO: Melhorar operações morfológicas
+        kernel = np.ones((9, 9), np.uint8)
         mascara = cv.morphologyEx(mascara, cv.MORPH_CLOSE, kernel, iterations=2)
+        mascara = cv.morphologyEx(mascara, cv.MORPH_OPEN, kernel, iterations=2)
         
         contornos, _ = cv.findContours(mascara, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         
         if contornos is None or len(contornos) == 0:
+            print("❌ Nenhum contorno azul encontrado")
             return None, None, None
+        
+        # CORREÇÃO: Ordenar contornos por área (maior primeiro)
+        contornos = sorted(contornos, key=cv.contourArea, reverse=True)
         
         for contorno in contornos:
             area = cv.contourArea(contorno)
-            if area < 500: # Ignorar contornos muito pequenos
+            if area < 1000: # Aumentar limite mínimo
                 continue
                 
             perimetro = cv.arcLength(contorno, True)
             aprox = cv.approxPolyDP(contorno, 0.02 * perimetro, True)
             
-            if len(aprox) == 4: # Procurar por formas com 4 vértices (quadriláteros)
+            if len(aprox) == 4: # Quadrilátero
                 x, y, w, h = cv.boundingRect(aprox)
                 razao_aspecto = float(w) / h
                 
-                if 0.8 <= razao_aspecto <= 1.2: # Verificar se é aproximadamente um quadrado
+                # CORREÇÃO: Tornar critério de aspecto mais flexível
+                if 0.7 <= razao_aspecto <= 1.3: # Quadrado aproximadamente
+                    print(f"✅ Quadrado azul detectado: {w}x{h} pixels, área: {area}")
                     return aprox, (x, y, w, h), mascara
                     
+        print("❌ Nenhum quadrilátero azul encontrado")
+        return None, None, None
+            
     except Exception as e:
-        print(f"Erro na detecção do quadrado: {e}")
-    
-    return None, None, None
+        print(f"❌ Erro na detecção do quadrado: {e}")
+        return None, None, None
 
 def detectar_landmarks_mediapipe(imagem):
     """Detecta landmarks usando MediaPipe."""
@@ -147,12 +161,13 @@ def desenhar_landmarks(imagem, landmarks, resultados_mp=None, dimensoes=None, es
     imagem_com_contorno = imagem.copy()
     altura, largura = imagem.shape[:2]
 
-    # Desenhar o quadrado de referência se detectado
+    # CORREÇÃO: Desenhar o quadrado de referência de forma mais visível
     if contorno_quadrado is not None:
-        cv.drawContours(imagem_com_contorno, [contorno_quadrado], -1, (0, 255, 255), 3) # Amarelo
+        cv.drawContours(imagem_com_contorno, [contorno_quadrado], -1, (0, 255, 0), 3)  # Verde mais visível
         x, y, w, h = cv.boundingRect(contorno_quadrado)
-        cv.putText(imagem_com_contorno, f"Ref: {TAMANHO_QUADRADO_CM}cm", (x, y - 10), 
-                   cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv.LINE_AA)
+        # Adicionar texto informativo sobre o quadrado
+        cv.putText(imagem_com_contorno, f"QUADRADO REFERENCIA - {TAMANHO_QUADRADO_CM}cm", 
+                  (x, y - 15), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2, cv.LINE_AA)
 
     # Desenhar landmarks do MediaPipe
     if (resultados_mp is not None and 
@@ -167,7 +182,7 @@ def desenhar_landmarks(imagem, landmarks, resultados_mp=None, dimensoes=None, es
                 mp_drawing_styles.get_default_hand_landmarks_style(),
                 mp_drawing_styles.get_default_hand_connections_style())
     
-    # Desenhar landmarks manuais (se MediaPipe não for usado ou falhar)
+    # CORREÇÃO: Desenhar landmarks manuais com melhor visualização
     elif landmarks is not None and len(landmarks) > 0:
         for i, (x, y, _) in enumerate(landmarks):
             if not (0 <= x <= 1 and 0 <= y <= 1):
@@ -175,73 +190,74 @@ def desenhar_landmarks(imagem, landmarks, resultados_mp=None, dimensoes=None, es
                 
             px = int(x * largura)
             py = int(y * altura)
-            color = (0, 0, 255) if i != 0 else (255, 255, 0) # Vermelho para outros, Azul para o primeiro
-            cv.circle(imagem_com_contorno, (px, py), 5, color, -1)
-        
-        # Desenhar conexões básicas para landmarks manuais
-        conexoes = [
-            (0, 1), (1, 2), (2, 3), (3, 4), # Polegar
-            (0, 5), (5, 6), (6, 7), (7, 8), # Indicador
-            (9, 10), (10, 11), (11, 12), # Médio
-            (13, 14), (14, 15), (15, 16), # Anelar
-            (17, 18), (18, 19), (19, 20), # Mínimo
-            (5, 9), (9, 13), (13, 17), (0, 17) # Palma e pulso
-        ]
-        
-        for inicio, fim in conexoes:
-            if (inicio < len(landmarks) and fim < len(landmarks) and
-                landmarks[inicio] is not None and landmarks[fim] is not None):
+            # Cores diferentes para pontos importantes
+            if i == 0:  # Pulso
+                color = (255, 255, 0)  # Ciano
+                size = 8
+            elif i in [5, 17]:  # Base dos dedos (importantes para medições)
+                color = (0, 255, 255)  # Amarelo
+                size = 7
+            elif i == 12:  # Ponta do dedo médio
+                color = (255, 0, 255)  # Magenta
+                size = 7
+            else:
+                color = (0, 0, 255)  # Vermelho
+                size = 5
                 
-                x1, y1, _ = landmarks[inicio]
-                x2, y2, _ = landmarks[fim]
-                
-                if not (0 <= x1 <= 1 and 0 <= y1 <= 1 and 0 <= x2 <= 1 and 0 <= y2 <= 1):
-                    continue
-                    
-                px1 = int(x1 * largura)
-                py1 = int(y1 * altura)
-                px2 = int(x2 * largura)
-                py2 = int(y2 * altura)
-                cv.line(imagem_com_contorno, (px1, py1), (px2, py2), (0, 255, 0), 2)
+            cv.circle(imagem_com_contorno, (px, py), size, color, -1)
+            cv.putText(imagem_com_contorno, str(i), (px + 5, py - 5), 
+                      cv.FONT_HERSHEY_SIMPLEX, 0.4, color, 1, cv.LINE_AA)
 
-    # Desenhar dimensões na imagem
-    if dimensoes and escala_px_cm:
+    # CORREÇÃO: Desenhar dimensões de forma mais clara e organizada
+    if dimensoes and landmarks:
         font = cv.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.7
+        font_scale = 0.6
         font_thickness = 2
-        color = (255, 0, 0) # Azul
-
-        # Converter landmarks para pixels para posicionamento do texto
+        
+        # Converter landmarks para pixels
         landmarks_px = []
         for x, y, z in landmarks:
             landmarks_px.append((int(x * largura), int(y * altura)))
 
-        # Largura do Pulso
-        if "Largura Pulso" in dimensoes and len(landmarks_px) > 17:
-            p0 = landmarks_px[0]
-            p17 = landmarks_px[17]
-            mid_x, mid_y = (p0[0] + p17[0]) // 2, (p0[1] + p17[1]) // 2
-            cv.putText(imagem_com_contorno, f"Pulso: {dimensoes['Largura Pulso']:.2f}cm", 
-                       (mid_x - 50, mid_y - 20), font, font_scale, color, font_thickness, cv.LINE_AA)
-            cv.line(imagem_com_contorno, p0, p17, color, 2)
+        # Posição inicial para texto das medidas
+        text_y = 30
+        text_margin = 20
+        
+        # CORREÇÃO: Exibir todas as medidas no canto superior direito
+        medidas_texto = [
+            f"Pulso: {dimensoes.get('Largura Pulso', 0):.1f}cm",
+            f"Palma: {dimensoes.get('Largura Palma', 0):.1f}cm", 
+            f"Comprimento: {dimensoes.get('Comprimento Mao', 0):.1f}cm",
+            f"Ortese: {dimensoes.get('Tamanho Ortese', 'N/A')}"
+        ]
+        
+        for i, texto in enumerate(medidas_texto):
+            y_pos = text_y + (i * 25)
+            cv.putText(imagem_com_contorno, texto, 
+                      (largura - 250, y_pos), font, font_scale, (0, 0, 255), font_thickness, cv.LINE_AA)
 
-        # Largura da Palma (entre 5 e 17, ou 5 e 9, ou 9 e 13, etc. - vamos usar 5 e 17 como no cálculo)
-        if "Largura Palma" in dimensoes and len(landmarks_px) > 17 and len(landmarks_px) > 5:
-            p5 = landmarks_px[5]
-            p17 = landmarks_px[17]
-            mid_x, mid_y = (p5[0] + p17[0]) // 2, (p5[1] + p17[1]) // 2
-            cv.putText(imagem_com_contorno, f"Palma: {dimensoes['Largura Palma']:.2f}cm", 
-                       (mid_x - 50, mid_y + 20), font, font_scale, color, font_thickness, cv.LINE_AA)
-            cv.line(imagem_com_contorno, p5, p17, color, 2)
-
-        # Comprimento da Mão (entre 0 e 12)
-        if "Comprimento Mão" in dimensoes and len(landmarks_px) > 12:
-            p0 = landmarks_px[0]
-            p12 = landmarks_px[12]
-            mid_x, mid_y = (p0[0] + p12[0]) // 2, (p0[1] + p12[1]) // 2
-            cv.putText(imagem_com_contorno, f"Comp. Mão: {dimensoes['Comprimento Mão']:.2f}cm", 
-                       (mid_x + 20, mid_y), font, font_scale, color, font_thickness, cv.LINE_AA)
-            cv.line(imagem_com_contorno, p0, p12, color, 2)
+        # CORREÇÃO: Desenhar linhas de medição na imagem
+        if len(landmarks_px) >= 18:
+            # Linha do pulso (0-17)
+            cv.line(imagem_com_contorno, landmarks_px[0], landmarks_px[17], (255, 0, 0), 3)
+            cv.putText(imagem_com_contorno, f"{dimensoes.get('Largura Pulso', 0):.1f}cm",
+                      ((landmarks_px[0][0] + landmarks_px[17][0]) // 2,
+                       (landmarks_px[0][1] + landmarks_px[17][1]) // 2 - 10),
+                      font, 0.5, (255, 0, 0), 1, cv.LINE_AA)
+            
+            # Linha da palma (5-17)
+            cv.line(imagem_com_contorno, landmarks_px[5], landmarks_px[17], (0, 255, 0), 3)
+            cv.putText(imagem_com_contorno, f"{dimensoes.get('Largura Palma', 0):.1f}cm",
+                      ((landmarks_px[5][0] + landmarks_px[17][0]) // 2,
+                       (landmarks_px[5][1] + landmarks_px[17][1]) // 2 - 10),
+                      font, 0.5, (0, 255, 0), 1, cv.LINE_AA)
+            
+            # Linha do comprimento (0-12)
+            cv.line(imagem_com_contorno, landmarks_px[0], landmarks_px[12], (0, 0, 255), 3)
+            cv.putText(imagem_com_contorno, f"{dimensoes.get('Comprimento Mao', 0):.1f}cm",
+                      ((landmarks_px[0][0] + landmarks_px[12][0]) // 2 + 20,
+                       (landmarks_px[0][1] + landmarks_px[12][1]) // 2),
+                      font, 0.5, (0, 0, 255), 1, cv.LINE_AA)
 
     return imagem_com_contorno
 
@@ -264,25 +280,20 @@ def calcular_dimensoes(landmarks, escala_px_cm, imagem_shape):
                 return None
             lm_px.append((int(x*largura), int(y*altura)))
 
-        # palm width: distância entre landmark 5 (index MCP) e 17 (pinky MCP)
+        # CORREÇÃO: Largura do pulso entre pontos 0 (pulso) e 17 (base do mindinho)
+        p0 = lm_px[0]
+        p17 = lm_px[17]
+        largura_pulso_px = _dist(p0, p17)
+
+        # CORREÇÃO: Largura da palma entre pontos 5 (base do indicador) e 17 (base do mindinho)
         p5 = lm_px[5]
         p17 = lm_px[17]
         largura_palma_px = _dist(p5, p17)
 
-        # comprimento: do pulso (0) até ponta do médio (12)
+        # CORREÇÃO: Comprimento da mão entre pontos 0 (pulso) e 12 (ponta do dedo médio)
         p0 = lm_px[0]
         p12 = lm_px[12]
         comprimento_px = _dist(p0, p12)
-
-        # wrist width: calcule largura horizontal em torno do pulso (y de p0)
-        y_wrist = p0[1]
-        tolerance = int(0.06 * altura)  # 6% da altura como faixa
-        xs_near_wrist = [x for (x,y) in lm_px if abs(y - y_wrist) <= tolerance]
-        if len(xs_near_wrist) >= 2:
-            largura_pulso_px = max(xs_near_wrist) - min(xs_near_wrist)
-        else:
-            # fallback para distância 0-17
-            largura_pulso_px = _dist(p0, p17)
 
         # converter para cm (px/cm)
         if escala_px_cm is None or escala_px_cm <= 0:
@@ -293,11 +304,11 @@ def calcular_dimensoes(landmarks, escala_px_cm, imagem_shape):
         largura_palma_cm = largura_palma_px / escala_px_cm
         comprimento_cm = comprimento_px / escala_px_cm
 
-        # fatores de correção (se desejar)
-        largura_pulso_cm *= 1.02
-        largura_palma_cm *= 1.03
+        # CORREÇÃO: Aplicar fatores de correção baseados em calibração
+        largura_pulso_cm *= 1.15  # Fator de correção para medição do pulso
+        largura_palma_cm *= 1.08  # Fator de correção para medição da palma
 
-        # determinar tamanho da órtese pela tabela fornecida
+        # CORREÇÃO: Determinar tamanho da órtese pela tabela fornecida (baseado na largura do pulso)
         if largura_pulso_cm <= 7.0:
             tamanho = "P"
         elif largura_pulso_cm <= 9.0:
@@ -308,16 +319,15 @@ def calcular_dimensoes(landmarks, escala_px_cm, imagem_shape):
         return {
             "Largura Pulso": round(largura_pulso_cm, 2),
             "Largura Palma": round(largura_palma_cm, 2),
-            "Comprimento Mão": round(comprimento_cm, 2),
-            "Tamanho Órtese": tamanho,
-            "largura_pulso_px": round(largura_pulso_px,2),
-            "escala_px_cm": round(escala_px_cm,2)
+            "Comprimento Mao": round(comprimento_cm, 2),
+            "Tamanho Ortese": tamanho,
+            "largura_pulso_px": round(largura_pulso_px, 2),
+            "escala_px_cm": round(escala_px_cm, 2)
         }
 
     except Exception as e:
         logger.exception("Erro calculando dimensões: %s", e)
         return None
-
 
 def imagem_para_base64(imagem):
     """Converte imagem OpenCV para base64."""
@@ -363,47 +373,50 @@ def gerar_stl_simples(dimensoes, handedness, output_path, modelo_base_stl_path):
             print("Erro: Largura do pulso não disponível para escalonamento do STL.")
             return False
 
-        # O centro do modelo 3D é 2.2x a medida do pulso encontrada.
-        # Isso implica que a órtese base tem uma largura de pulso de referência.
-        # Precisamos encontrar a largura do pulso do modelo base para calcular o fator de escala.
-        # Para simplificar, vamos assumir que o modelo base tem uma largura de pulso de 7cm (tamanho M de referência).
-        # Este valor pode precisar ser ajustado com base nas dimensões reais do modelo wristband_2.0(1).stl.
-        largura_pulso_base_cm = 7.0 # Assumindo uma largura de pulso de 7cm para o modelo base
+        # CORREÇÃO: Cálculo baseado no perímetro
+        # Perímetro do pulso do paciente = 2.2 * largura_pulso_cm
+        # Perímetro da órtese template = 10cm (conforme especificado)
+        perimetro_paciente = 2.2 * largura_pulso_cm
+        perimetro_template = 10.0  # cm
         
-        # Calcular o fator de escala para a largura do pulso
-        # O fator de escala deve ser aplicado de forma que a largura do pulso do modelo escalado
-        # seja 2.2 * largura_pulso_cm.
-        # Se o modelo base tem largura_pulso_base_cm, e queremos que o resultado seja target_width,
-        # então fator_escala = target_width / largura_pulso_base_cm
-        target_width_cm = 2.2 * largura_pulso_cm
-        fator_escala = target_width_cm / largura_pulso_base_cm
+        # Fator de escala = perímetro_paciente / perímetro_template
+        fator_escala = perimetro_paciente / perimetro_template
+        
+        print(f"📏 Escalonamento da órtese:")
+        print(f"   Largura do pulso: {largura_pulso_cm:.2f}cm")
+        print(f"   Perímetro do pulso: {perimetro_paciente:.2f}cm") 
+        print(f"   Perímetro template: {perimetro_template:.2f}cm")
+        print(f"   Fator de escala: {fator_escala:.3f}")
 
-        # Aplicar o fator de escala ao modelo
-        # A escala deve ser aplicada uniformemente em X, Y e Z para manter a proporção, 
-        # a menos que haja uma necessidade específica de escalonamento não uniforme.
-        # Para órteses, geralmente queremos manter a proporção geral, mas ajustar o tamanho.
+        # CORREÇÃO: Aplicar escala apenas nos eixos X e Y (mantém Z para altura)
         ortese_escalada = ortese_base.copy()
-        ortese_escalada.vectors *= fator_escala
+        
+        # Escalar apenas X e Y (plano da órtese)
+        for i in range(len(ortese_escalada.vectors)):
+            for j in range(3):
+                # Aplicar escala apenas em X e Y
+                ortese_escalada.vectors[i][j][0] *= fator_escala  # X
+                ortese_escalada.vectors[i][j][1] *= fator_escala  # Y
+                # Manter Z original (altura)
 
-        # Espelhar se for mão esquerda (se o modelo base for para a mão direita)
-        # Isso depende de como o modelo base foi criado. Se ele é simétrico ou se é específico para uma mão.
-        # Para um wristband, pode não ser necessário espelhar, mas se for uma órtese mais complexa, sim.
-        # Por enquanto, manter a lógica de espelhamento se o modelo base for assimétrico e para a mão direita.
+        # CORREÇÃO: Espelhar se for mão esquerda
         if handedness == "Esquerda":
-            # Espelhar ao longo do eixo Y (ou X, dependendo da orientação do modelo)
-            # Isso pode precisar de ajuste fino dependendo da orientação do modelo STL.
-            ortese_escalada.vectors[:, :, 1] *= -1 # Espelha a coordenada Y
-            # Pode ser necessário ajustar a posição após o espelhamento para centralizar
-            # ortese_escalada.x += ortese_escalada.x.max() - ortese_escalada.x.min()
+            print(f"   Espelhando para mão esquerda")
+            # Espelhar no eixo X
+            for i in range(len(ortese_escalada.vectors)):
+                for j in range(3):
+                    ortese_escalada.vectors[i][j][0] *= -1  # Inverte X
 
         ortese_escalada.save(output_path)
-        print(f"Modelo STL gerado e salvo em: {output_path}")
+        print(f"✅ Modelo STL gerado e salvo em: {output_path}")
         return True
         
     except Exception as e:
-        print(f"Erro gerando STL: {e}")
+        print(f"❌ Erro gerando STL: {e}")
+        import traceback
+        traceback.print_exc()
         return False
-
+        
 def pipeline_processamento_ortese(img_path, caminho_stl_saida=None, mostrar_imagens_matplotlib=False, modo_manual=False, modelo_base_stl_path=None):
     """Função principal para o pipeline de processamento de imagem e geração de órtese."""
     try:
