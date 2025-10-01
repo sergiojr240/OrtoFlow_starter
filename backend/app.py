@@ -149,10 +149,10 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
         c.rect(x_quad, y_quad, quad_size, quad_size, stroke=0, fill=1)
 
         # Inserir uma pequena área branca interna para o QR (melhor contraste)
-        #inset = 4  # pontos
-        #inner_size = quad_size - 2 * inset
-        #c.setFillColor(colors.white)
-        #c.rect(x_quad + inset, y_quad + inset, inner_size, inner_size, stroke=0, fill=1)
+        inset = 4  # pontos
+        inner_size = quad_size - 2 * inset
+        c.setFillColor(colors.white)
+        c.rect(x_quad + inset, y_quad + inset, inner_size, inner_size, stroke=0, fill=1)
 
         # Gerar QR code (dados básicos) e inserir no centro do quadrado
         qr_payload = f"ID:{paciente_id};Nome:{nome};Idade:{idade}"

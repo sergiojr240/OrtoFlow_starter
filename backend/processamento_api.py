@@ -4,6 +4,8 @@ import mediapipe as mp
 import base64
 from stl import mesh
 import os
+import math
+import logging
 
 # Configurações
 TAMANHO_QUADRADO_CM = 6.0
@@ -15,6 +17,11 @@ mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
+logger = logging.getLogger(__name__)
+
+def _dist(p1, p2):
+    return math.hypot(p1[0]-p2[0], p1[1]-p2[1])
+    
 def detectar_quadrado_azul(imagem):
     """Detecta quadrado azul na imagem e retorna o contorno, dimensões e a máscara."""
     try:
@@ -239,72 +246,78 @@ def desenhar_landmarks(imagem, landmarks, resultados_mp=None, dimensoes=None, es
     return imagem_com_contorno
 
 def calcular_dimensoes(landmarks, escala_px_cm, imagem_shape):
-    """Calcula dimensões da mão com base nos landmarks e escala."""
+    """
+    landmarks: lista de 21 (x,y,z) normalizados (0..1)
+    escala_px_cm: px por cm (float)
+    imagem_shape: shape da imagem (h, w, ...)
+    retorna dicionário com medidas em cm (float)
+    """
     try:
         altura, largura = imagem_shape[:2]
-        
         if landmarks is None or len(landmarks) < 21:
-            print("Erro: Landmarks insuficientes para calcular dimensões.")
             return None
-        
-        # Converter landmarks normalizados (0-1) para coordenadas de pixel
-        landmarks_px = []
-        for lm in landmarks:
-            # Certificar-se de que lm é uma tupla/lista com pelo menos 2 elementos (x, y)
-            if len(lm) < 2:
-                print(f"Erro: Landmark com formato inválido: {lm}")
+
+        # converter para pixels
+        lm_px = []
+        for x,y,z in landmarks:
+            if not (0 <= x <= 1 and 0 <= y <= 1):
                 return None
-            x_px = int(lm[0] * largura)
-            y_px = int(lm[1] * altura)
-            landmarks_px.append((x_px, y_px))
-        
-        # Medições baseadas nos landmarks do MediaPipe (indices)
-        # Pulso: ponto 0 (base do pulso) e ponto 17 (base do dedo mínimo)
-        # A largura do pulso é geralmente medida entre os ossos ulna e rádio, 
-        # mas para uma foto 2D, a distância entre o ponto 0 e 17 do MediaPipe é uma boa aproximação.
-        p0 = np.array(landmarks_px[mp_hands.HandLandmark.WRIST.value])
-        p17 = np.array(landmarks_px[mp_hands.HandLandmark.PINKY_MCP.value]) # Base do dedo mínimo
-        largura_pulso_px = np.linalg.norm(p0 - p17)
+            lm_px.append((int(x*largura), int(y*altura)))
+
+        # palm width: distância entre landmark 5 (index MCP) e 17 (pinky MCP)
+        p5 = lm_px[5]
+        p17 = lm_px[17]
+        largura_palma_px = _dist(p5, p17)
+
+        # comprimento: do pulso (0) até ponta do médio (12)
+        p0 = lm_px[0]
+        p12 = lm_px[12]
+        comprimento_px = _dist(p0, p12)
+
+        # wrist width: calcule largura horizontal em torno do pulso (y de p0)
+        y_wrist = p0[1]
+        tolerance = int(0.06 * altura)  # 6% da altura como faixa
+        xs_near_wrist = [x for (x,y) in lm_px if abs(y - y_wrist) <= tolerance]
+        if len(xs_near_wrist) >= 2:
+            largura_pulso_px = max(xs_near_wrist) - min(xs_near_wrist)
+        else:
+            # fallback para distância 0-17
+            largura_pulso_px = _dist(p0, p17)
+
+        # converter para cm (px/cm)
+        if escala_px_cm is None or escala_px_cm <= 0:
+            logger.warning("Escala inválida: %s", escala_px_cm)
+            return None
+
         largura_pulso_cm = largura_pulso_px / escala_px_cm
-        
-        # Largura da Palma: entre a base do indicador (ponto 5) e a base do mínimo (ponto 17)
-        p5 = np.array(landmarks_px[mp_hands.HandLandmark.INDEX_FINGER_MCP.value]) # Base do dedo indicador
-        largura_palma_px = np.linalg.norm(p5 - p17)
         largura_palma_cm = largura_palma_px / escala_px_cm
-        
-        # Comprimento da Mão: do pulso (ponto 0) até a ponta do dedo médio (ponto 12)
-        p12 = np.array(landmarks_px[mp_hands.HandLandmark.MIDDLE_FINGER_TIP.value]) # Ponta do dedo médio
-        comprimento_mao_px = np.linalg.norm(p0 - p12)
-        comprimento_mao_cm = comprimento_mao_px / escala_px_cm
-        
-        # Fatores de correção (ajustar conforme a necessidade para maior precisão)
-        largura_pulso_cm *= 1.05 # Ajuste experimental
-        largura_palma_cm *= 1.05 # Ajuste experimental
-        comprimento_mao_cm *= 1.05 # Ajuste experimental
-        
-        # Determinar tamanho da órtese com base na largura do pulso (conforme tabela do usuário)
-        tamanho_ortese = "Desconhecido"
-        if 5.0 <= largura_pulso_cm <= 7.0:
-            tamanho_ortese = "P"
-        elif 7.1 <= largura_pulso_cm <= 9.0:
-            tamanho_ortese = "M"
-        elif 9.1 <= largura_pulso_cm <= 11.0:
-            tamanho_ortese = "G"
-        elif largura_pulso_cm < 5.0:
-            tamanho_ortese = "PP"
-        elif largura_pulso_cm > 11.0:
-            tamanho_ortese = "GG"
+        comprimento_cm = comprimento_px / escala_px_cm
+
+        # fatores de correção (se desejar)
+        largura_pulso_cm *= 1.02
+        largura_palma_cm *= 1.03
+
+        # determinar tamanho da órtese pela tabela fornecida
+        if largura_pulso_cm <= 7.0:
+            tamanho = "P"
+        elif largura_pulso_cm <= 9.0:
+            tamanho = "M"
+        else:
+            tamanho = "G"
 
         return {
             "Largura Pulso": round(largura_pulso_cm, 2),
             "Largura Palma": round(largura_palma_cm, 2),
-            "Comprimento Mão": round(comprimento_mao_cm, 2),
-            "Tamanho Órtese": tamanho_ortese
+            "Comprimento Mão": round(comprimento_cm, 2),
+            "Tamanho Órtese": tamanho,
+            "largura_pulso_px": round(largura_pulso_px,2),
+            "escala_px_cm": round(escala_px_cm,2)
         }
-        
+
     except Exception as e:
-        print(f"Erro calculando dimensões: {e}")
+        logger.exception("Erro calculando dimensões: %s", e)
         return None
+
 
 def imagem_para_base64(imagem):
     """Converte imagem OpenCV para base64."""
