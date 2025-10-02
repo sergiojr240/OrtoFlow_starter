@@ -21,6 +21,10 @@ mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
+import base64
+import shutil
+import time
+
 def imagem_para_base64(imagem):
     """Converte imagem OpenCV para base64."""
     try:
@@ -28,9 +32,9 @@ def imagem_para_base64(imagem):
             print("Erro: Imagem vazia ou inválida para conversão base64.")
             return None
             
-        # Redimensionar imagem se for muito grande para evitar problemas de performance/tamanho
+        # Redimensionar imagem se for muito grande
         altura, largura = imagem.shape[:2]
-        max_dim = 1000 # Limite máximo para a maior dimensão
+        max_dim = 1000
         if altura > max_dim or largura > max_dim:
             fator = min(max_dim/altura, max_dim/largura)
             nova_altura = int(altura * fator)
@@ -48,6 +52,10 @@ def imagem_para_base64(imagem):
     except Exception as e:
         print(f"Erro convertendo imagem para base64: {e}")
         return None
+
+# Configurações globais para o processamento
+UPLOAD_FOLDER = '/tmp'
+
 
 def detectar_quadrado_azul(imagem, debug=False):
     """
@@ -415,7 +423,7 @@ def pipeline_processamento_ortese(caminho_imagem, caminho_stl_saida=None, modo_m
 
 def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl_path=None):
     """
-    Versão corrigida do processamento - remove argumentos problemáticos
+    Versão corrigida com todas as dependências
     """
     try:
         # Converter bytes para imagem
@@ -442,18 +450,24 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
             escala_px_cm = 67.92  # Fallback
         
         # CORREÇÃO: Chamar pipeline sem argumentos problemáticos
-        caminho_stl, imagem_processada, _, dimensoes, handedness = pipeline_processamento_ortese(
+        resultado_pipeline = pipeline_processamento_ortese(
             temp_img_path, 
             caminho_stl_saida=None,
             modo_manual=modo_manual
         )
+        
+        # Verificar se o pipeline retornou resultados
+        if resultado_pipeline[0] is None:
+            return {"erro": "Não foi possível processar a imagem no pipeline"}
+            
+        caminho_stl, imagem_processada, _, dimensoes, handedness = resultado_pipeline
         
         # Limpar arquivo temporário
         if os.path.exists(temp_img_path):
             os.remove(temp_img_path)
         
         if dimensoes is None:
-            return {"erro": "Não foi possível processar a imagem"}
+            return {"erro": "Não foi possível calcular dimensões da imagem"}
         
         # Converter imagem para base64
         imagem_base64 = imagem_para_base64(imagem_processada)
@@ -464,11 +478,12 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         # CORREÇÃO: Se STL foi gerado, criar link para download
         stl_url = None
         if caminho_stl and os.path.exists(caminho_stl):
-            # Mover para pasta de uploads com nome do paciente
+            # Mover para pasta de uploads com nome único
             stl_filename = f"ortese_gerada_{int(time.time())}.stl"
             stl_final_path = os.path.join(UPLOAD_FOLDER, stl_filename)
             shutil.copy2(caminho_stl, stl_final_path)
             stl_url = f"/api/download-stl/{stl_filename}"
+            print(f"📁 STL movido para: {stl_final_path}")
         
         resultado = {
             "sucesso": True,
