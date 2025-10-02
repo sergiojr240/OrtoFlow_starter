@@ -291,7 +291,7 @@ def pipeline_processamento_ortese(caminho_imagem, caminho_stl_saida=None, modo_m
     
     # 1. Detectar quadrado azul (versão melhorada)
     print("🔍 Detectando quadrado azul...")
-    contorno_quadrado, dimensoes_quadrado, _ = detectar_quadrado_azul_melhorado(imagem, DEBUG)
+    contorno_quadrado, dimensoes_quadrado, _ = detectar_quadrado_azul(imagem, DEBUG)
     
     escala_px_cm = 0.0
     if contorno_quadrado is None:
