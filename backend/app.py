@@ -238,7 +238,6 @@ def baixar_folha(paciente_id):
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
 
-# ===== PROCESSAMENTO REAL DE IMAGEM =====
 @app.route('/api/processar-imagem', methods=['POST', 'OPTIONS'])
 def processar_imagem():
     if request.method == 'OPTIONS':
@@ -283,7 +282,6 @@ def processar_imagem():
     except Exception as e:
         print(f"💥 Erro no processamento: {str(e)}")
         return jsonify({'erro': f'Erro no processamento: {str(e)}'}), 500
-
 
 def processamento_simulado_com_stl(paciente_id):
     """Simulação de processamento que inclui geração de STL"""
@@ -398,18 +396,16 @@ def processamento_simulado():
         'tipo_processamento': 'simulado'  # Para debug
     }
 
-@app.route('/api/download-stl/<filename>', methods=['GET', 'OPTIONS'])
+@app.route('/api/download-stl/<filename>', methods=['GET'])
 def download_stl(filename):
-    if request.method == 'OPTIONS':
-        return '', 200
-        
+    """Faz download do arquivo STL gerado."""
     try:
         stl_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         
         if os.path.exists(stl_path):
             return send_file(
-                stl_path, 
-                as_attachment=True, 
+                stl_path,
+                as_attachment=True,
                 download_name=f'ortese_personalizada.stl',
                 mimetype='application/vnd.ms-pki.stl'
             )
@@ -417,7 +413,6 @@ def download_stl(filename):
             return jsonify({'erro': 'Arquivo STL não encontrado'}), 404
             
     except Exception as e:
-        print(f"❌ Erro no download do STL: {e}")
         return jsonify({'erro': f'Erro no download: {str(e)}'}), 500
 
 # Teste simples - adicione esta rota para debug

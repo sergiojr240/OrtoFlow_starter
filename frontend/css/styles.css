@@ -417,3 +417,31 @@ footer {
     background-color: #95a5a6;
     transform: none;
 }
+
+/* Estilos para o preview da imagem */
+#preview-container {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #17a2b8;
+}
+
+#preview-container h4 {
+    color: #17a2b8;
+    margin-bottom: 10px;
+}
+
+#preview-imagem {
+    max-height: 300px;
+    object-fit: contain;
+}
+
+/* Melhorar a exibição da imagem processada */
+#imagem-processada {
+    max-height: 500px;
+    object-fit: contain;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    background: #f8f9fa;
+}

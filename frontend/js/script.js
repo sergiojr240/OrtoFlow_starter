@@ -410,6 +410,49 @@ function testarConexaoManual() {
     });
 }
 
+// Adicione esta função para preview da imagem original
+function mostrarPreviewImagem(arquivo) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        // Criar elemento de preview se não existir
+        let previewContainer = document.getElementById('preview-container');
+        if (!previewContainer) {
+            previewContainer = document.createElement('div');
+            previewContainer.id = 'preview-container';
+            previewContainer.innerHTML = `
+                <h4>Preview da Imagem</h4>
+                <img id="preview-imagem" src="" style="max-width: 100%; border: 2px solid #ddd; border-radius: 5px; display: none;">
+            `;
+            document.querySelector('#form-upload').prepend(previewContainer);
+        }
+        
+        const previewImg = document.getElementById('preview-imagem');
+        previewImg.src = e.target.result;
+        previewImg.style.display = 'block';
+        previewImg.alt = 'Preview da imagem selecionada';
+        
+        console.log("✅ Preview da imagem carregado");
+    };
+    reader.readAsDataURL(arquivo);
+}
+
+// Atualize o evento de change do input de imagem
+const inputImagem = document.getElementById('imagem');
+if (inputImagem) {
+    inputImagem.addEventListener('change', function(e) {
+        const arquivo = e.target.files[0];
+        if (arquivo) {
+            // Mostrar preview
+            mostrarPreviewImagem(arquivo);
+            
+            // Limpar resultados anteriores
+            document.getElementById('resultado-processamento').classList.add('hidden');
+            document.getElementById('imagem-processada').style.display = 'none';
+        }
+    });
+}
+}
+
 // Adicionar botão de teste manual (opcional)
 document.addEventListener('DOMContentLoaded', function() {
     // Adicionar botão de teste de conexão
