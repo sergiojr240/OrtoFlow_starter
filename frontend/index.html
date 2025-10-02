@@ -109,15 +109,17 @@
                     <input type="file" id="imagem" name="imagem" accept="image/*" required>
                     <small>Formatos aceitos: JPG, PNG (Máx. 10MB)</small>
                 </div>
-                
-                <div class="form-group checkbox">
-                    <label>
-                        <input type="checkbox" id="modo-manual"> 
-                        Usar modo manual para detecção de pontos
-                    </label>
-                </div>
-                
-                <button type="submit" class="btn-primary">Processar Imagem e Analisar Medidas</button>
+                <div>
+					<button type="submit" class="btn-primary">Processar Imagem</button>
+					
+					<div class="form-group checkbox">
+						<label>
+							<input type="checkbox" id="modo-manual"> 
+							Usar modo manual para detecção de pontos
+						</label>
+					</div>
+				</div>
+				
             </form>
             
             <div id="resultado-processamento" class="hidden resultado">

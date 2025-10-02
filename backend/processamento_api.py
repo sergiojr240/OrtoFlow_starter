@@ -228,11 +228,11 @@ def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path)
         if not os.path.exists(modelo_base_path):
             # Tentar caminhos alternativos
             caminhos_alternativos = [
-                os.path.join(os.path.dirname(__file__), '..', 'OrtoFlow_starter', 'models', 'modelo_base.stl'),
-                os.path.join(os.path.dirname(__file__), 'OrtoFlow_starter', 'models', 'modelo_base.stl'),
-                'OrtoFlow_starter/models/modelo_base.stl',
-                '../OrtoFlow_starter/models/modelo_base.stl',
-                '../../OrtoFlow_starter/models/modelo_base.stl'
+                os.path.join(os.path.dirname(__file__), '..', 'models', 'modelo_base.stl'),
+                os.path.join(os.path.dirname(__file__), 'models', 'modelo_base.stl'),
+                'models/modelo_base.stl',
+                '../models/modelo_base.stl',
+                '../../models/modelo_base.stl'
             ]
             
             modelo_encontrado = False

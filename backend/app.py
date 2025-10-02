@@ -49,7 +49,7 @@ import importlib.util
 # Certifique-se de que este arquivo esteja acessível no ambiente de execução
 
 # Caminho para o modelo STL base fornecido pelo usuário
-MODELO_BASE_STL_PATH = os.path.join(os.path.dirname(__file__), 'OrtoFlow_starter', 'models', 'modelo_base.stl')
+MODELO_BASE_STL_PATH = os.path.join(os.path.dirname(__file__), 'models', 'modelo_base.stl')
 
 # Verificar se o arquivo existe
 if not os.path.exists(MODELO_BASE_STL_PATH):
@@ -57,9 +57,9 @@ if not os.path.exists(MODELO_BASE_STL_PATH):
     
     # Tentar caminhos alternativos
     caminhos_alternativos = [
-        os.path.join(os.path.dirname(__file__), '..', 'OrtoFlow_starter', 'models', 'modelo_base.stl'),
+        os.path.join(os.path.dirname(__file__), '..', 'models', 'modelo_base.stl'),
         os.path.join(os.path.dirname(__file__), 'models', 'modelo_base.stl'),
-        'OrtoFlow_starter/models/modelo_base.stl'
+        'models/modelo_base.stl'
     ]
     
     for caminho in caminhos_alternativos:
