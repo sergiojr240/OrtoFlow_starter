@@ -458,7 +458,7 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         if stl_path and os.path.exists(stl_path):
             # CORREÇÃO: Usar o mesmo arquivo, não copiar
             stl_filename = os.path.basename(stl_path)
-            stl_url = f"/api/download-stl/{stl_filename}"
+            stl_url = f"/backend/models/{stl_filename}"
             
             print(f"📎 STL disponível para download: {stl_url}")
             print(f"📁 Caminho real do arquivo: {stl_path}")
