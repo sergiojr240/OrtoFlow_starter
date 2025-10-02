@@ -12,6 +12,7 @@ from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
 import time
 import shutil
+import numpy as np
 
 app = Flask(__name__)
 
@@ -304,6 +305,7 @@ def processamento_simulado_com_stl(paciente_id):
     """Simulação de processamento que inclui geração de STL"""
     import random
     import tempfile
+    import numpy as np  # Adicionar importação do numpy aqui
     
     # Gerar medidas realistas
     largura_pulso = round(5.5 + random.random() * 2, 1)

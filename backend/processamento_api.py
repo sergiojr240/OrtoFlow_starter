@@ -21,6 +21,34 @@ mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
+def imagem_para_base64(imagem):
+    """Converte imagem OpenCV para base64."""
+    try:
+        if imagem is None or imagem.size == 0:
+            print("Erro: Imagem vazia ou inválida para conversão base64.")
+            return None
+            
+        # Redimensionar imagem se for muito grande para evitar problemas de performance/tamanho
+        altura, largura = imagem.shape[:2]
+        max_dim = 1000 # Limite máximo para a maior dimensão
+        if altura > max_dim or largura > max_dim:
+            fator = min(max_dim/altura, max_dim/largura)
+            nova_altura = int(altura * fator)
+            nova_largura = int(largura * fator)
+            imagem = cv.resize(imagem, (nova_largura, nova_altura), interpolation=cv.INTER_AREA)
+        
+        _, buffer = cv.imencode(".jpg", imagem, [cv.IMWRITE_JPEG_QUALITY, 90])
+        
+        if buffer is None:
+            print("Erro: Falha ao codificar imagem para JPEG.")
+            return None
+            
+        imagem_base64 = base64.b64encode(buffer).decode("utf-8")
+        return f"data:image/jpeg;base64,{imagem_base64}"
+    except Exception as e:
+        print(f"Erro convertendo imagem para base64: {e}")
+        return None
+
 def detectar_quadrado_azul(imagem, debug=False):
     """
     Detecção melhorada do quadrado azul que ignora o QR code
