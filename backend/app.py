@@ -47,7 +47,31 @@ import importlib.util
 
 # Caminho para o modelo STL base fornecido pelo usuário
 # Certifique-se de que este arquivo esteja acessível no ambiente de execução
-MODELO_BASE_STL_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'upload', 'wristband_2.0(1).stl')
+
+# Caminho para o modelo STL base fornecido pelo usuário
+MODELO_BASE_STL_PATH = os.path.join(os.path.dirname(__file__), 'OrtoFlow_starter', 'models', 'modelo_base.stl')
+
+# Verificar se o arquivo existe
+if not os.path.exists(MODELO_BASE_STL_PATH):
+    print(f"⚠️ AVISO: Modelo base não encontrado em: {MODELO_BASE_STL_PATH}")
+    
+    # Tentar caminhos alternativos
+    caminhos_alternativos = [
+        os.path.join(os.path.dirname(__file__), '..', 'OrtoFlow_starter', 'models', 'modelo_base.stl'),
+        os.path.join(os.path.dirname(__file__), 'models', 'modelo_base.stl'),
+        'OrtoFlow_starter/models/modelo_base.stl'
+    ]
+    
+    for caminho in caminhos_alternativos:
+        if os.path.exists(caminho):
+            MODELO_BASE_STL_PATH = caminho
+            print(f"✅ Modelo base encontrado em: {caminho}")
+            break
+    else:
+        print("❌ Modelo base não encontrado em nenhum caminho alternativo")
+else:
+    print(f"✅ Modelo base encontrado: {MODELO_BASE_STL_PATH}")
+
 
 # Carregar módulo de processamento
 try:

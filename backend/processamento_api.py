@@ -156,37 +156,58 @@ def desenhar_medidas_simplificado(imagem, landmarks, dimensoes, contorno_quadrad
     # Calcular pontos para as linhas usando os multiplicadores
     distancia_base_px = dimensoes.get('distancia_base_px', math.hypot(p17[0]-p5[0], p17[1]-p5[1]))
     
-    # Linha da palma (pontos 5-17)
+    # LINHA DA PALMA (pontos 5-17)
     cv.line(img_com_medidas, p5, p17, (255, 0, 0), 3)
     cv.putText(img_com_medidas, f"Palma: {dimensoes['Largura Palma']:.2f}cm",
               ((p5[0] + p17[0]) // 2 - 60, (p5[1] + p17[1]) // 2 - 15),
               cv.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
     
-    # Linha do pulso (calculada a partir do ponto 0)
-    # Usar a mesma direção da linha 5-17 mas com comprimento reduzido
-    dx = p17[0] - p5[0]
-    dy = p17[1] - p5[1]
-    comprimento_base = math.hypot(dx, dy)
-    
-    if comprimento_base > 0:
-        # Calcular ponto final para a linha do pulso
-        fator_pulso = MULTIPLICADOR_PULSO / MULTIPLICADOR_PALMA
-        ponto_pulso_fim = (
-            int(p0[0] + dx * fator_pulso),
-            int(p0[1] + dy * fator_pulso)
-        )
-        
-        cv.line(img_com_medidas, p0, ponto_pulso_fim, (0, 165, 255), 3)
-        cv.putText(img_com_medidas, f"Pulso: {dimensoes['Largura Pulso']:.2f}cm",
-                  ((p0[0] + ponto_pulso_fim[0]) // 2 - 60, 
-                   (p0[1] + ponto_pulso_fim[1]) // 2 + 20),
-                  cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
-    
-    # Linha do comprimento (ponto 0-12)
+    # LINHA DO COMPRIMENTO (ponto 0-12)
     cv.line(img_com_medidas, p0, p12, (0, 255, 0), 3)
     cv.putText(img_com_medidas, f"Comp: {dimensoes['Comprimento Mao']:.2f}cm",
               ((p0[0] + p12[0]) // 2 + 10, (p0[1] + p12[1]) // 2),
               cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+    
+    # LINHA DO PULSO CORRIGIDA - Perpendicular ao comprimento, centrada no ponto 0
+    # Calcular vetor do comprimento (0->12)
+    vetor_comprimento = (p12[0] - p0[0], p12[1] - p0[1])
+    
+    # Calcular vetor perpendicular (90 graus)
+    vetor_perpendicular = (-vetor_comprimento[1], vetor_comprimento[0])
+    
+    # Normalizar o vetor perpendicular
+    norma = math.hypot(vetor_perpendicular[0], vetor_perpendicular[1])
+    if norma > 0:
+        vetor_perpendicular = (vetor_perpendicular[0]/norma, vetor_perpendicular[1]/norma)
+    
+    # Calcular pontos da linha do pulso (centrada no ponto 0)
+    largura_pulso_px = distancia_base_px * MULTIPLICADOR_PULSO
+    metade_largura = largura_pulso_px / 2
+    
+    ponto_pulso_inicio = (
+        int(p0[0] - vetor_perpendicular[0] * metade_largura),
+        int(p0[1] - vetor_perpendicular[1] * metade_largura)
+    )
+    ponto_pulso_fim = (
+        int(p0[0] + vetor_perpendicular[0] * metade_largura),
+        int(p0[1] + vetor_perpendicular[1] * metade_largura)
+    )
+    
+    cv.line(img_com_medidas, ponto_pulso_inicio, ponto_pulso_fim, (0, 165, 255), 3)
+    cv.putText(img_com_medidas, f"Pulso: {dimensoes['Largura Pulso']:.2f}cm",
+              ((p0[0] + ponto_pulso_inicio[0] + ponto_pulso_fim[0]) // 3, 
+               (p0[1] + ponto_pulso_inicio[1] + ponto_pulso_fim[1]) // 3),
+              cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
+    
+    # DESENHAR TODOS OS LANDMARKS (pontos da mão)
+    for i, landmark in enumerate(landmarks):
+        x = int(landmark[0] * largura)
+        y = int(landmark[1] * altura)
+        # Desenhar círculo em cada landmark
+        cv.circle(img_com_medidas, (x, y), 4, (0, 0, 255), -1)  # Vermelho
+        # Adicionar número do landmark (opcional)
+        cv.putText(img_com_medidas, str(i), (x-5, y-5), 
+                  cv.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
     
     # Informações adicionais
     y_offset = 30
@@ -202,9 +223,31 @@ def desenhar_medidas_simplificado(imagem, landmarks, dimensoes, contorno_quadrad
 def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path):
     """Gera STL usando a lógica do perímetro."""
     try:
+        print(f"🔍 Procurando modelo base em: {modelo_base_path}")
+        
         if not os.path.exists(modelo_base_path):
-            print(f"Modelo base não encontrado: {modelo_base_path}")
-            return False
+            # Tentar caminhos alternativos
+            caminhos_alternativos = [
+                os.path.join(os.path.dirname(__file__), '..', 'OrtoFlow_starter', 'models', 'modelo_base.stl'),
+                os.path.join(os.path.dirname(__file__), 'OrtoFlow_starter', 'models', 'modelo_base.stl'),
+                'OrtoFlow_starter/models/modelo_base.stl',
+                '../OrtoFlow_starter/models/modelo_base.stl',
+                '../../OrtoFlow_starter/models/modelo_base.stl'
+            ]
+            
+            modelo_encontrado = False
+            for caminho in caminhos_alternativos:
+                if os.path.exists(caminho):
+                    modelo_base_path = caminho
+                    modelo_encontrado = True
+                    print(f"✅ Modelo base encontrado em: {caminho}")
+                    break
+            
+            if not modelo_encontrado:
+                print(f"❌ Modelo base não encontrado em nenhum caminho alternativo")
+                return False
+        else:
+            print(f"✅ Modelo base encontrado no caminho original")
         
         # Carregar modelo base
         ortese_base = mesh.Mesh.from_file(modelo_base_path)
@@ -243,7 +286,7 @@ def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path)
         print(f"❌ Erro gerando STL: {e}")
         return False
 
-def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, modo_manual=False):
+def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, modo_manual=False, modelo_base_path=None):
     """Pipeline simplificado sem contorno complexo."""
     try:
         print("🔄 Iniciando pipeline simplificado...")
@@ -274,6 +317,7 @@ def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, 
             resultados = hands.process(imagem_rgb)
             
             if not resultados.multi_hand_landmarks:
+                print("❌ Nenhuma mão detectada")
                 return None, None, None, None, None
             
             hand_landmarks = resultados.multi_hand_landmarks[0]
@@ -284,6 +328,8 @@ def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, 
                 for classification in resultados.multi_handedness[0].classification:
                     handedness = classification.label
                     break
+            
+            print(f"✅ {len(landmarks)} landmarks detectados - Mão: {handedness}")
         
         # 3. Calcular dimensões
         print("📏 Calculando dimensões...")
@@ -292,15 +338,13 @@ def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, 
             return None, None, None, None, None
         
         # 4. Desenhar resultados
-        print("🎨 Desenhando medidas...")
+        print("🎨 Desenhando medidas e landmarks...")
         imagem_resultado = desenhar_medidas_simplificado(imagem, landmarks, dimensoes, contorno_quadrado)
         
         # 5. Gerar STL se solicitado
         stl_gerado = None
-        if caminho_stl_saida:
+        if caminho_stl_saida and modelo_base_path:
             print("🖨️ Gerando STL...")
-            # Usar modelo base (ajuste o caminho conforme necessário)
-            modelo_base_path = "OrtoFlow_starter\models\modelo_base.stl"  # Altere para o caminho correto
             if gerar_stl_simplificado(dimensoes, handedness, caminho_stl_saida, modelo_base_path):
                 stl_gerado = caminho_stl_saida
                 print(f"✅ STL gerado: {stl_gerado}")
@@ -335,7 +379,7 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         
         # Processar
         stl_path, imagem_processada, _, dimensoes, handedness = pipeline_processamento_simplificado(
-            temp_img_path, temp_stl_path, modo_manual
+            temp_img_path, temp_stl_path, modo_manual, modelo_base_stl_path
         )
         
         # Limpar arquivo temporário
