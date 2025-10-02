@@ -1,4 +1,4 @@
-# processamento_api.py - VERSÃO CORRIGIDA
+# processamento_api.py - VERSÃO COMPLETAMENTE CORRIGIDA
 import cv2 as cv
 import numpy as np
 import mediapipe as mp
@@ -137,6 +137,32 @@ def calcular_dimensoes_simplificado(landmarks, escala_px_cm, imagem_shape):
         print(f"Erro no cálculo simplificado: {e}")
         return None
 
+def corrigir_detecao_mao(landmarks, handedness_detectado, imagem_shape):
+    """Corrige a detecção da mão (direita/esquerda) que pode estar invertida."""
+    try:
+        altura, largura = imagem_shape[:2]
+        
+        # Converter landmarks para pixels
+        pulso = (int(landmarks[0][0] * largura), int(landmarks[0][1] * altura))
+        polegar_ponta = (int(landmarks[4][0] * largura), int(landmarks[4][1] * altura))
+        mindinho_ponta = (int(landmarks[20][0] * largura), int(landmarks[20][1] * altura))
+        
+        # Se a ponta do polegar estiver à esquerda da ponta do mindinho na imagem,
+        # é provavelmente a mão direita (e vice-versa)
+        if polegar_ponta[0] < mindinho_ponta[0]:
+            mao_corrigida = "Right"
+        else:
+            mao_corrigida = "Left"
+            
+        print(f"🔧 Correção de mão: Detectado='{handedness_detectado}', Corrigido='{mao_corrigida}'")
+        print(f"   📍 Polegar: {polegar_ponta}, Mindinho: {mindinho_ponta}")
+        
+        return mao_corrigida
+        
+    except Exception as e:
+        print(f"⚠️ Erro na correção da mão: {e}")
+        return handedness_detectado
+
 def desenhar_medidas_simplificado(imagem, landmarks, dimensoes, contorno_quadrado=None):
     """Desenha as medidas na imagem de forma simplificada."""
     img_com_medidas = imagem.copy()
@@ -220,33 +246,15 @@ def desenhar_medidas_simplificado(imagem, landmarks, dimensoes, contorno_quadrad
     return img_com_medidas
 
 def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path):
-    """Gera STL usando a lógica do perímetro - VERSÃO CORRIGIDA."""
+    """Gera STL usando a lógica do perímetro - VERSÃO COMPLETAMENTE CORRIGIDA."""
     try:
         print(f"🔍 Procurando modelo base em: {modelo_base_path}")
         
         if not os.path.exists(modelo_base_path):
-            # Tentar caminhos alternativos
-            caminhos_alternativos = [
-                os.path.join(os.path.dirname(__file__), '..', 'OrtoFlow_starter', 'models', 'modelo_base.stl'),
-                os.path.join(os.path.dirname(__file__), 'OrtoFlow_starter', 'models', 'modelo_base.stl'),
-                'OrtoFlow_starter/models/modelo_base.stl',
-                '../OrtoFlow_starter/models/modelo_base.stl',
-                '../../OrtoFlow_starter/models/modelo_base.stl'
-            ]
-            
-            modelo_encontrado = False
-            for caminho in caminhos_alternativos:
-                if os.path.exists(caminho):
-                    modelo_base_path = caminho
-                    modelo_encontrado = True
-                    print(f"✅ Modelo base encontrado em: {caminho}")
-                    break
-            
-            if not modelo_encontrado:
-                print(f"❌ Modelo base não encontrado em nenhum caminho alternativo")
-                return False
-        else:
-            print(f"✅ Modelo base encontrado no caminho original")
+            print(f"❌ Modelo base não encontrado em: {modelo_base_path}")
+            return False
+        
+        print(f"✅ Modelo base encontrado no caminho original")
         
         # Carregar modelo base
         print(f"📁 Carregando modelo STL: {modelo_base_path}")
@@ -269,27 +277,15 @@ def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path)
         print(f"   Perímetro: {perimetro_paciente:.2f}cm")
         print(f"   Fator: {fator_escala:.3f}")
         
-        # CORREÇÃO: Criar uma cópia manual do mesh em vez de usar .copy()
-        # Criar um novo mesh com os mesmos dados
-        ortese_escalada = mesh.Mesh(ortese_base.data.copy())
+        # CORREÇÃO SIMPLES: Escalonar os vetores diretamente
+        ortese_escalada = mesh.Mesh(np.zeros(ortese_base.vectors.shape[0], dtype=mesh.Mesh.dtype))
+        ortese_escalada.vectors = ortese_base.vectors * fator_escala
         
-        # Aplicar escala - CORREÇÃO: escalar todos os vértices
-        ortese_escalada.x *= fator_escala  # Escala X
-        ortese_escalada.y *= fator_escala  # Escala Y  
-        ortese_escalada.z *= fator_escala  # Escala Z (manter proporção)
-        
-        # Atualizar os vetores após escalonamento
-        ortese_escalada.vectors = np.zeros((len(ortese_escalada.x), 3, 3))
-        ortese_escalada.vectors[:,:,0] = ortese_escalada.x.reshape((-1, 3))
-        ortese_escalada.vectors[:,:,1] = ortese_escalada.y.reshape((-1, 3))
-        ortese_escalada.vectors[:,:,2] = ortese_escalada.z.reshape((-1, 3))
-        
-        # Espelhar para mão esquerda
+        # Espelhar para mão esquerda (se necessário)
         if handedness == "Left":
             print("🔄 Espelhando para mão esquerda")
-            ortese_escalada.x *= -1.0
-            # Atualizar vetores novamente após espelhamento
-            ortese_escalada.vectors[:,:,0] = ortese_escalada.x.reshape((-1, 3))
+            # Inverter o eixo X para espelhar
+            ortese_escalada.vectors[:,:,0] *= -1.0
         
         # Garantir que o diretório de saída existe
         os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else '.', exist_ok=True)
@@ -297,10 +293,31 @@ def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path)
         # Salvar
         ortese_escalada.save(output_path)
         print(f"✅ STL salvo: {output_path}")
-        print(f"📏 Dimensões do STL gerado:")
-        print(f"   X: {ortese_escalada.x.min():.2f} a {ortese_escalada.x.max():.2f}")
-        print(f"   Y: {ortese_escalada.y.min():.2f} a {ortese_escalada.y.max():.2f}") 
-        print(f"   Z: {ortese_escalada.z.min():.2f} a {ortese_escalada.z.max():.2f}")
+        
+        # Verificar se o arquivo foi realmente criado
+        if os.path.exists(output_path):
+            file_size = os.path.getsize(output_path)
+            print(f"📁 Arquivo STL criado: {file_size} bytes")
+            
+            # Ler o arquivo salvo para verificar as dimensões
+            stl_verificado = mesh.Mesh.from_file(output_path)
+            if len(stl_verificado.vectors) > 0:
+                min_x = stl_verificado.vectors[:,:,0].min()
+                max_x = stl_verificado.vectors[:,:,0].max()
+                min_y = stl_verificado.vectors[:,:,1].min()
+                max_y = stl_verificado.vectors[:,:,1].max()
+                min_z = stl_verificado.vectors[:,:,2].min()
+                max_z = stl_verificado.vectors[:,:,2].max()
+                
+                print(f"📏 Dimensões do STL gerado (verificado):")
+                print(f"   X: {min_x:.2f} a {max_x:.2f} (largura: {max_x-min_x:.2f})")
+                print(f"   Y: {min_y:.2f} a {max_y:.2f} (altura: {max_y-min_y:.2f})") 
+                print(f"   Z: {min_z:.2f} a {max_z:.2f} (profundidade: {max_z-min_z:.2f})")
+            else:
+                print("⚠️ Não foi possível verificar as dimensões do STL")
+        else:
+            print("❌ Arquivo STL não foi criado")
+            return False
         
         return True
         
@@ -348,13 +365,17 @@ def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, 
             hand_landmarks = resultados.multi_hand_landmarks[0]
             landmarks = [(lm.x, lm.y, lm.z) for lm in hand_landmarks.landmark]
             
-            handedness = "Right"
+            handedness_detectado = "Right"
             if resultados.multi_handedness:
                 for classification in resultados.multi_handedness[0].classification:
-                    handedness = classification.label
+                    handedness_detectado = classification.label
                     break
             
-            print(f"✅ {len(landmarks)} landmarks detectados - Mão: {handedness}")
+            print(f"✅ {len(landmarks)} landmarks detectados - Mão detectada: {handedness_detectado}")
+            
+            # CORREÇÃO: Aplicar correção da detecção da mão
+            handedness = corrigir_detecao_mao(landmarks, handedness_detectado, imagem.shape)
+            print(f"🔧 Mão final: {handedness}")
         
         # 3. Calcular dimensões
         print("📏 Calculando dimensões...")
@@ -393,7 +414,7 @@ def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, 
         return None, None, None, None, None
 
 def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl_path=None):
-    """Função principal para a API - VERSÃO CORRIGIDA."""
+    """Função principal para a API - VERSÃO COMPLETAMENTE CORRIGIDA."""
     try:
         print("🔍 Processando imagem para API...")
         
@@ -420,7 +441,7 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
             temp_img_path, temp_stl_path, modo_manual, modelo_base_stl_path
         )
         
-        # Limpar arquivo temporário
+        # Limpar arquivo temporário da imagem
         if os.path.exists(temp_img_path):
             os.remove(temp_img_path)
         
@@ -435,19 +456,17 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         # Preparar URL para download do STL
         stl_url = None
         if stl_path and os.path.exists(stl_path):
-            # Mover para pasta de uploads com nome mais amigável
-            stl_filename = f"ortese_personalizada_{int(time.time())}.stl"
-            stl_final_path = os.path.join(UPLOAD_FOLDER, stl_filename)
-            shutil.copy2(stl_path, stl_final_path)
+            # CORREÇÃO: Usar o mesmo arquivo, não copiar
+            stl_filename = os.path.basename(stl_path)
             stl_url = f"/api/download-stl/{stl_filename}"
             
             print(f"📎 STL disponível para download: {stl_url}")
-            
-            # Limpar arquivo temporário do STL
-            if os.path.exists(stl_path):
-                os.remove(stl_path)
+            print(f"📁 Caminho real do arquivo: {stl_path}")
+            print(f"📁 Tamanho do arquivo: {os.path.getsize(stl_path)} bytes")
         else:
             print("ℹ️ Nenhum STL gerado para download")
+            if stl_path:
+                print(f"❌ Arquivo STL não existe em: {stl_path}")
         
         return {
             "sucesso": True,

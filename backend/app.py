@@ -423,13 +423,20 @@ def processamento_simulado():
         'tipo_processamento': 'simulado'  # Para debug
     }
 
+# No arquivo app.py, atualize a rota de download:
+
 @app.route('/api/download-stl/<filename>', methods=['GET'])
 def download_stl(filename):
     """Faz download do arquivo STL gerado."""
     try:
         stl_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         
+        print(f"📥 Tentando fazer download do arquivo: {stl_path}")
+        
         if os.path.exists(stl_path):
+            file_size = os.path.getsize(stl_path)
+            print(f"✅ Arquivo encontrado: {stl_path} ({file_size} bytes)")
+            
             return send_file(
                 stl_path,
                 as_attachment=True,
@@ -437,9 +444,15 @@ def download_stl(filename):
                 mimetype='application/vnd.ms-pki.stl'
             )
         else:
+            print(f"❌ Arquivo não encontrado: {stl_path}")
+            # Listar arquivos no diretório para debug
+            files_in_dir = os.listdir(app.config['UPLOAD_FOLDER'])
+            print(f"📁 Arquivos no diretório {app.config['UPLOAD_FOLDER']}: {files_in_dir}")
+            
             return jsonify({'erro': 'Arquivo STL não encontrado'}), 404
             
     except Exception as e:
+        print(f"❌ Erro no download: {str(e)}")
         return jsonify({'erro': f'Erro no download: {str(e)}'}), 500
 
 # Teste simples - adicione esta rota para debug
