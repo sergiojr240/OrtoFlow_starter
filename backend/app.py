@@ -260,10 +260,10 @@ def processar_imagem():
         # Ler imagem
         imagem_bytes = arquivo.read()
         
-        # 🔥 TENTAR PROCESSAMENTO REAL
+        # 🔥 TENTAR PROCESSAMENTO REAL PRIMEIRO
         try:
             if processamento and hasattr(processamento, 'processar_imagem_ortese_api'):
-                print("🔄 Usando processamento existente...")
+                print("🔄 Usando processamento REAL...")
                 resultado = processamento.processar_imagem_ortese_api(
                     imagem_bytes, 
                     modo_manual,
@@ -271,8 +271,7 @@ def processar_imagem():
                 )
                 
                 if resultado.get('sucesso'):
-                    print("✅ Processamento existente bem-sucedido")
-                    
+                    print("✅ Processamento REAL bem-sucedido!")
                     # CORREÇÃO: Garantir que stl_url seja retornado
                     if 'stl_url' not in resultado and resultado.get('stl_path'):
                         stl_filename = f"ortese_gerada_{paciente_id}_{int(time.time())}.stl"
@@ -282,19 +281,22 @@ def processar_imagem():
                             shutil.copy2(resultado['stl_path'], stl_final_path)
                             resultado['stl_url'] = f"/api/download-stl/{stl_filename}"
                     
+                    return jsonify(resultado)
                 else:
-                    print("❌ Processamento existente falhou, usando simulação")
-                    resultado = processamento_simulado_com_stl(paciente_id)
+                    print(f"❌ Processamento REAL falhou: {resultado.get('erro', 'Erro desconhecido')}")
+                    # Continuar para a simulação
+                    
             else:
-                print("🔧 Módulo não disponível, usando simulação")
-                resultado = processamento_simulado_com_stl(paciente_id)
+                print("🔧 Módulo não disponível")
                 
         except Exception as e:
-            print(f"⚠️ Erro no processamento existente: {e}")
+            print(f"⚠️ Erro no processamento REAL: {e}")
             import traceback
             traceback.print_exc()
-            resultado = processamento_simulado_com_stl(paciente_id)
-
+        
+        # 🔄 SE O PROCESSAMENTO REAL FALHOU, USAR SIMULAÇÃO
+        print("🔄 Usando processamento SIMULADO...")
+        resultado = processamento_simulado_com_stl(paciente_id)
         return jsonify(resultado)
         
     except Exception as e:

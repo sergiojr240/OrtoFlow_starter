@@ -283,12 +283,22 @@ function atualizarProgresso(percent, texto) {
 
 //EXIBIR RESULTADOS DO PROCESSAMENTO
 function exibirResultadosProcessamento(resultado) {
+    console.log("🎯 Exibindo resultados:", resultado);
+    
     // Imagem processada
     const imagemProcessada = document.getElementById('imagem-processada');
     if (resultado.imagem_processada) {
+        console.log("🖼️ Imagem processada disponível, configurando src...");
         imagemProcessada.src = resultado.imagem_processada;
         imagemProcessada.style.display = 'block';
+        imagemProcessada.onload = function() {
+            console.log("✅ Imagem carregada com sucesso no frontend");
+        };
+        imagemProcessada.onerror = function() {
+            console.log("❌ Erro ao carregar imagem no frontend");
+        };
     } else {
+        console.log("❌ Nenhuma imagem processada disponível");
         // Imagem placeholder quando não há imagem processada
         imagemProcessada.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzY2NiI+SW1hZ2VtIHByb2Nlc3NhZGEgbsOjbyBkaXNwb27DrXZlbDwvdGV4dD48L3N2Zz4=';
         imagemProcessada.style.display = 'block';
@@ -296,6 +306,7 @@ function exibirResultadosProcessamento(resultado) {
 
     // Dimensões
     if (resultado.dimensoes) {
+        console.log("📏 Dimensões disponíveis:", resultado.dimensoes);
         const dimensoesDiv = document.getElementById('dimensoes');
         dimensoesDiv.innerHTML = '';
         for (const [chave, valor] of Object.entries(resultado.dimensoes)) {
@@ -328,6 +339,7 @@ function exibirResultadosProcessamento(resultado) {
     }
 
     document.getElementById('resultado-processamento').classList.remove('hidden');
+    console.log("✅ Resultados exibidos com sucesso");
 }
 
 // ===== FUNÇÕES DE NAVEGAÇÃO =====

@@ -28,9 +28,15 @@ import time
 def imagem_para_base64(imagem):
     """Converte imagem OpenCV para base64."""
     try:
-        if imagem is None or imagem.size == 0:
-            print("Erro: Imagem vazia ou inválida para conversão base64.")
+        if imagem is None:
+            print("❌ imagem_para_base64: Imagem é None")
             return None
+            
+        if imagem.size == 0:
+            print("❌ imagem_para_base64: Imagem está vazia")
+            return None
+            
+        print(f"🖼️ imagem_para_base64: Convertendo imagem shape {imagem.shape}")
             
         # Redimensionar imagem se for muito grande
         altura, largura = imagem.shape[:2]
@@ -40,19 +46,30 @@ def imagem_para_base64(imagem):
             nova_altura = int(altura * fator)
             nova_largura = int(largura * fator)
             imagem = cv.resize(imagem, (nova_largura, nova_altura), interpolation=cv.INTER_AREA)
+            print(f"📏 imagem_para_base64: Imagem redimensionada para {nova_largura}x{nova_altura}")
         
-        _, buffer = cv.imencode(".jpg", imagem, [cv.IMWRITE_JPEG_QUALITY, 90])
+        # Codificar para JPEG
+        success, buffer = cv.imencode(".jpg", imagem, [cv.IMWRITE_JPEG_QUALITY, 90])
         
-        if buffer is None:
-            print("Erro: Falha ao codificar imagem para JPEG.")
+        if not success:
+            print("❌ imagem_para_base64: Falha ao codificar imagem para JPEG")
             return None
             
+        if buffer is None:
+            print("❌ imagem_para_base64: Buffer é None após codificação")
+            return None
+            
+        print(f"✅ imagem_para_base64: Imagem codificada - buffer size: {len(buffer)}")
+        
         imagem_base64 = base64.b64encode(buffer).decode("utf-8")
-        return f"data:image/jpeg;base64,{imagem_base64}"
+        result = f"data:image/jpeg;base64,{imagem_base64}"
+        print(f"✅ imagem_para_base64: Conversão para base64 bem-sucedida - tamanho: {len(result)}")
+        
+        return result
+        
     except Exception as e:
-        print(f"Erro convertendo imagem para base64: {e}")
+        print(f"❌ imagem_para_base64: Erro na conversão: {e}")
         return None
-
 # Configurações globais para o processamento
 UPLOAD_FOLDER = '/tmp'
 
@@ -325,6 +342,8 @@ def pipeline_processamento_ortese(caminho_imagem, caminho_stl_saida=None, modo_m
         print(f"❌ Erro ao carregar imagem: {caminho_imagem}")
         return None, None, None, None, None
     
+    print(f"✅ Imagem carregada: {imagem.shape}")
+    
     # 1. Detectar quadrado azul (versão melhorada)
     print("🔍 Detectando quadrado azul...")
     contorno_quadrado, dimensoes_quadrado, _ = detectar_quadrado_azul(imagem, DEBUG)
@@ -412,6 +431,13 @@ def pipeline_processamento_ortese(caminho_imagem, caminho_stl_saida=None, modo_m
     imagem_resultado = desenhar_medidas_com_contorno(
         imagem, landmarks, dimensoes, contorno_mao, pontos_palma, pontos_pulso)
     
+    # CORREÇÃO: Garantir que a imagem_resultado não seja None
+    if imagem_resultado is None:
+        print("⚠️ imagem_resultado é None, usando imagem original")
+        imagem_resultado = imagem
+    
+    print(f"✅ Imagem resultado shape: {imagem_resultado.shape}")
+    
     # 6. Gerar STL (simplificado - usar a lógica existente)
     if caminho_stl_saida:
         print("🖨️ Gerando STL...")
@@ -420,23 +446,30 @@ def pipeline_processamento_ortese(caminho_imagem, caminho_stl_saida=None, modo_m
     
     print("✅ Pipeline concluído com sucesso!")
     return caminho_stl_saida, imagem_resultado, None, dimensoes, handedness
+    
 
 def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl_path=None):
     """
-    Versão corrigida com todas as dependências
+    Versão com debug detalhado para identificar problemas
     """
     try:
+        print("🔍 DEBUG: Iniciando processamento da imagem...")
+        
         # Converter bytes para imagem
         nparr = np.frombuffer(imagem_bytes, np.uint8)
         imagem = cv.imdecode(nparr, cv.IMREAD_COLOR)
         
         if imagem is None:
+            print("❌ DEBUG: Falha ao decodificar imagem dos bytes")
             return {"erro": "Não foi possível carregar a imagem"}
         
+        print(f"✅ DEBUG: Imagem carregada - shape: {imagem.shape}")
+
         # Usar o pipeline existente como base
         temp_img_path = "temp_input_melhorado.jpg"
-        cv.imwrite(temp_img_path, imagem)
-        
+        success = cv.imwrite(temp_img_path, imagem)
+        print(f"📁 DEBUG: Imagem temporária salva: {success} - {temp_img_path}")
+
         # Primeiro, vamos apenas melhorar a detecção do quadrado azul
         contorno_quadrado, dimensoes_quadrado, mascara = detectar_quadrado_azul(imagem)
         
@@ -444,12 +477,13 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         if contorno_quadrado is not None:
             x, y, w, h = dimensoes_quadrado
             escala_px_cm = ((w + h) / 2) / TAMANHO_QUADRADO_CM
-            print(f"✅ Quadrado azul detectado (melhorado): {w}x{h} px, escala: {escala_px_cm:.2f} px/cm")
+            print(f"✅ DEBUG: Quadrado azul detectado - {w}x{h} px, escala: {escala_px_cm:.2f} px/cm")
         else:
-            print("❌ Quadrado não detectado mesmo com método melhorado")
+            print("❌ DEBUG: Quadrado não detectado")
             escala_px_cm = 67.92  # Fallback
         
         # CORREÇÃO: Chamar pipeline sem argumentos problemáticos
+        print("🔄 DEBUG: Chamando pipeline de processamento...")
         resultado_pipeline = pipeline_processamento_ortese(
             temp_img_path, 
             caminho_stl_saida=None,
@@ -458,22 +492,38 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         
         # Verificar se o pipeline retornou resultados
         if resultado_pipeline[0] is None:
+            print("❌ DEBUG: Pipeline retornou None")
             return {"erro": "Não foi possível processar a imagem no pipeline"}
             
         caminho_stl, imagem_processada, _, dimensoes, handedness = resultado_pipeline
         
+        print(f"✅ DEBUG: Pipeline concluído - dimensoes: {dimensoes is not None}, imagem: {imagem_processada is not None}")
+        
         # Limpar arquivo temporário
         if os.path.exists(temp_img_path):
             os.remove(temp_img_path)
+            print("🗑️ DEBUG: Arquivo temporário removido")
         
         if dimensoes is None:
+            print("❌ DEBUG: Dimensões são None")
             return {"erro": "Não foi possível calcular dimensões da imagem"}
         
         # Converter imagem para base64
+        print("🖼️ DEBUG: Convertendo imagem para base64...")
         imagem_base64 = imagem_para_base64(imagem_processada)
         
         if imagem_base64 is None:
-            return {"erro": "Erro ao processar imagem para exibição"}
+            print("❌ DEBUG: Falha na conversão para base64")
+            # Tentar fallback: usar a imagem original
+            imagem_base64_fallback = imagem_para_base64(imagem)
+            if imagem_base64_fallback:
+                print("✅ DEBUG: Usando fallback da imagem original")
+                imagem_base64 = imagem_base64_fallback
+            else:
+                print("❌ DEBUG: Fallback também falhou")
+                return {"erro": "Erro ao processar imagem para exibição"}
+        else:
+            print("✅ DEBUG: Imagem convertida para base64 com sucesso")
         
         # CORREÇÃO: Se STL foi gerado, criar link para download
         stl_url = None
@@ -483,7 +533,9 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
             stl_final_path = os.path.join(UPLOAD_FOLDER, stl_filename)
             shutil.copy2(caminho_stl, stl_final_path)
             stl_url = f"/api/download-stl/{stl_filename}"
-            print(f"📁 STL movido para: {stl_final_path}")
+            print(f"📁 DEBUG: STL movido para: {stl_final_path}")
+        else:
+            print("ℹ️ DEBUG: Nenhum STL gerado ou caminho inválido")
         
         resultado = {
             "sucesso": True,
@@ -494,11 +546,11 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
             "tipo_processamento": "melhorado"
         }
         
-        print("✅ Processamento melhorado concluído!")
+        print("🎉 DEBUG: Processamento concluído com SUCESSO!")
         return resultado
         
     except Exception as e:
-        print(f"❌ Erro no processamento melhorado: {e}")
+        print(f"💥 DEBUG: Erro no processamento: {e}")
         import traceback
         traceback.print_exc()
-        return {"erro": f"Erro no processamento melhorado: {str(e)}"}
+        return {"erro": f"Erro no processamento: {str(e)}"}
