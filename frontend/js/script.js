@@ -451,7 +451,6 @@ if (inputImagem) {
         }
     });
 }
-}
 
 // Adicionar botão de teste manual (opcional)
 document.addEventListener('DOMContentLoaded', function() {
