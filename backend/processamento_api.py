@@ -1,6 +1,4 @@
-# processamento_imagem_ortese_simplificado.py
-# -*- coding: utf-8 -*-
-
+# processamento_api.py - VERSÃO CORRIGIDA
 import cv2 as cv
 import numpy as np
 import mediapipe as mp
@@ -10,6 +8,7 @@ import math
 import base64
 import shutil
 import time
+import copy
 
 # Configurações globais
 DEBUG = True
@@ -221,18 +220,18 @@ def desenhar_medidas_simplificado(imagem, landmarks, dimensoes, contorno_quadrad
     return img_com_medidas
 
 def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path):
-    """Gera STL usando a lógica do perímetro."""
+    """Gera STL usando a lógica do perímetro - VERSÃO CORRIGIDA."""
     try:
         print(f"🔍 Procurando modelo base em: {modelo_base_path}")
         
         if not os.path.exists(modelo_base_path):
             # Tentar caminhos alternativos
             caminhos_alternativos = [
-                os.path.join(os.path.dirname(__file__), '..', 'models', 'modelo_base.stl'),
-                os.path.join(os.path.dirname(__file__), 'models', 'modelo_base.stl'),
-                'models/modelo_base.stl',
-                '../models/modelo_base.stl',
-                '../../models/modelo_base.stl'
+                os.path.join(os.path.dirname(__file__), '..', 'OrtoFlow_starter', 'models', 'modelo_base.stl'),
+                os.path.join(os.path.dirname(__file__), 'OrtoFlow_starter', 'models', 'modelo_base.stl'),
+                'OrtoFlow_starter/models/modelo_base.stl',
+                '../OrtoFlow_starter/models/modelo_base.stl',
+                '../../OrtoFlow_starter/models/modelo_base.stl'
             ]
             
             modelo_encontrado = False
@@ -250,11 +249,14 @@ def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path)
             print(f"✅ Modelo base encontrado no caminho original")
         
         # Carregar modelo base
+        print(f"📁 Carregando modelo STL: {modelo_base_path}")
         ortese_base = mesh.Mesh.from_file(modelo_base_path)
+        print(f"✅ Modelo carregado: {len(ortese_base.vectors)} triângulos")
         
         # Obter largura do pulso
         largura_pulso_cm = dimensoes.get("Largura Pulso", 0.0)
         if largura_pulso_cm == 0.0:
+            print("❌ Largura do pulso não encontrada nas dimensões")
             return False
         
         # Calcular fator de escala baseado no perímetro
@@ -267,23 +269,45 @@ def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path)
         print(f"   Perímetro: {perimetro_paciente:.2f}cm")
         print(f"   Fator: {fator_escala:.3f}")
         
-        # Aplicar escala
-        ortese_escalada = ortese_base.copy()
-        ortese_escalada.vectors[:, :, 0] *= fator_escala  # X
-        ortese_escalada.vectors[:, :, 1] *= fator_escala  # Y
-        # Manter Z (altura) original
+        # CORREÇÃO: Criar uma cópia manual do mesh em vez de usar .copy()
+        # Criar um novo mesh com os mesmos dados
+        ortese_escalada = mesh.Mesh(ortese_base.data.copy())
+        
+        # Aplicar escala - CORREÇÃO: escalar todos os vértices
+        ortese_escalada.x *= fator_escala  # Escala X
+        ortese_escalada.y *= fator_escala  # Escala Y  
+        ortese_escalada.z *= fator_escala  # Escala Z (manter proporção)
+        
+        # Atualizar os vetores após escalonamento
+        ortese_escalada.vectors = np.zeros((len(ortese_escalada.x), 3, 3))
+        ortese_escalada.vectors[:,:,0] = ortese_escalada.x.reshape((-1, 3))
+        ortese_escalada.vectors[:,:,1] = ortese_escalada.y.reshape((-1, 3))
+        ortese_escalada.vectors[:,:,2] = ortese_escalada.z.reshape((-1, 3))
         
         # Espelhar para mão esquerda
         if handedness == "Left":
-            ortese_escalada.vectors[:, :, 0] *= -1.0
+            print("🔄 Espelhando para mão esquerda")
+            ortese_escalada.x *= -1.0
+            # Atualizar vetores novamente após espelhamento
+            ortese_escalada.vectors[:,:,0] = ortese_escalada.x.reshape((-1, 3))
+        
+        # Garantir que o diretório de saída existe
+        os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else '.', exist_ok=True)
         
         # Salvar
         ortese_escalada.save(output_path)
         print(f"✅ STL salvo: {output_path}")
+        print(f"📏 Dimensões do STL gerado:")
+        print(f"   X: {ortese_escalada.x.min():.2f} a {ortese_escalada.x.max():.2f}")
+        print(f"   Y: {ortese_escalada.y.min():.2f} a {ortese_escalada.y.max():.2f}") 
+        print(f"   Z: {ortese_escalada.z.min():.2f} a {ortese_escalada.z.max():.2f}")
+        
         return True
         
     except Exception as e:
         print(f"❌ Erro gerando STL: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, modo_manual=False, modelo_base_path=None):
@@ -294,6 +318,7 @@ def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, 
         # Carregar imagem
         imagem = cv.imread(caminho_imagem)
         if imagem is None:
+            print("❌ Não foi possível carregar a imagem")
             return None, None, None, None, None
         
         print(f"📷 Imagem carregada: {imagem.shape}")
@@ -335,7 +360,12 @@ def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, 
         print("📏 Calculando dimensões...")
         dimensoes = calcular_dimensoes_simplificado(landmarks, escala_px_cm, imagem.shape)
         if dimensoes is None:
+            print("❌ Erro no cálculo das dimensões")
             return None, None, None, None, None
+        
+        print(f"📐 Dimensões calculadas:")
+        for key, value in dimensoes.items():
+            print(f"   {key}: {value}")
         
         # 4. Desenhar resultados
         print("🎨 Desenhando medidas e landmarks...")
@@ -350,16 +380,20 @@ def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, 
                 print(f"✅ STL gerado: {stl_gerado}")
             else:
                 print("❌ Falha ao gerar STL")
+        else:
+            print("ℹ️ Geração de STL não solicitada ou caminho do modelo base não fornecido")
         
         print("✅ Pipeline simplificado concluído!")
         return stl_gerado, imagem_resultado, None, dimensoes, handedness
         
     except Exception as e:
         print(f"💥 Erro no pipeline: {e}")
+        import traceback
+        traceback.print_exc()
         return None, None, None, None, None
 
 def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl_path=None):
-    """Função principal para a API."""
+    """Função principal para a API - VERSÃO CORRIGIDA."""
     try:
         print("🔍 Processando imagem para API...")
         
@@ -371,11 +405,15 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
             return {"erro": "Não foi possível carregar a imagem"}
         
         # Salvar temporariamente
-        temp_img_path = "temp_processamento.jpg"
+        temp_img_path = os.path.join(UPLOAD_FOLDER, f"temp_processamento_{int(time.time())}.jpg")
         cv.imwrite(temp_img_path, imagem)
         
         # Gerar nome único para o STL
-        temp_stl_path = f"ortese_gerada_{int(time.time())}.stl"
+        temp_stl_path = os.path.join(UPLOAD_FOLDER, f"ortese_gerada_{int(time.time())}.stl")
+        
+        print(f"📁 Processando imagem: {temp_img_path}")
+        print(f"📁 Saída STL: {temp_stl_path}")
+        print(f"📁 Modelo base: {modelo_base_stl_path}")
         
         # Processar
         stl_path, imagem_processada, _, dimensoes, handedness = pipeline_processamento_simplificado(
@@ -397,15 +435,19 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         # Preparar URL para download do STL
         stl_url = None
         if stl_path and os.path.exists(stl_path):
-            # Mover para pasta de uploads
-            stl_filename = f"ortese_{int(time.time())}.stl"
+            # Mover para pasta de uploads com nome mais amigável
+            stl_filename = f"ortese_personalizada_{int(time.time())}.stl"
             stl_final_path = os.path.join(UPLOAD_FOLDER, stl_filename)
             shutil.copy2(stl_path, stl_final_path)
             stl_url = f"/api/download-stl/{stl_filename}"
             
+            print(f"📎 STL disponível para download: {stl_url}")
+            
             # Limpar arquivo temporário do STL
             if os.path.exists(stl_path):
                 os.remove(stl_path)
+        else:
+            print("ℹ️ Nenhum STL gerado para download")
         
         return {
             "sucesso": True,
@@ -418,4 +460,6 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         
     except Exception as e:
         print(f"❌ Erro no processamento: {e}")
+        import traceback
+        traceback.print_exc()
         return {"erro": f"Erro no processamento: {str(e)}"}

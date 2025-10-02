@@ -48,17 +48,18 @@ import importlib.util
 # Caminho para o modelo STL base fornecido pelo usuário
 # Certifique-se de que este arquivo esteja acessível no ambiente de execução
 
-# Caminho para o modelo STL base fornecido pelo usuário
+# Caminho para o modelo STL base 
 MODELO_BASE_STL_PATH = os.path.join(os.path.dirname(__file__), 'models', 'modelo_base.stl')
 
-# Verificar se o arquivo existe
+# Verificar e criar caminhos alternativos
 if not os.path.exists(MODELO_BASE_STL_PATH):
-    print(f"⚠️ AVISO: Modelo base não encontrado em: {MODELO_BASE_STL_PATH}")
+    print(f"⚠️ Modelo base não encontrado em: {MODELO_BASE_STL_PATH}")
     
     # Tentar caminhos alternativos
     caminhos_alternativos = [
         os.path.join(os.path.dirname(__file__), '..', 'models', 'modelo_base.stl'),
         os.path.join(os.path.dirname(__file__), 'models', 'modelo_base.stl'),
+        os.path.join(os.path.dirname(__file__), '..', 'models', 'modelo_base.stl'),
         'models/modelo_base.stl'
     ]
     
@@ -69,6 +70,8 @@ if not os.path.exists(MODELO_BASE_STL_PATH):
             break
     else:
         print("❌ Modelo base não encontrado em nenhum caminho alternativo")
+        # Criar diretório para evitar erros
+        os.makedirs(os.path.dirname(MODELO_BASE_STL_PATH), exist_ok=True)
 else:
     print(f"✅ Modelo base encontrado: {MODELO_BASE_STL_PATH}")
 
