@@ -290,7 +290,7 @@ function exibirResultadosProcessamento(resultado) {
         imagemProcessada.style.display = 'block';
     } else {
         // Imagem placeholder quando não há imagem processada
-        imagemProcessada.src = 'data:image/svg+xml;base64,PHN2Zy width="400" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#f0f0f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="16" fill="#666">Imagem processada não disponível</text></svg>';
+        imagemProcessada.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzY2NiI+SW1hZ2VtIHByb2Nlc3NhZGEgbsOjbyBkaXNwb27DrXZlbDwvdGV4dD48L3N2Zz4=';
         imagemProcessada.style.display = 'block';
     }
 
@@ -309,16 +309,22 @@ function exibirResultadosProcessamento(resultado) {
             `<div><strong>Mão Detectada:</strong> ${resultado.handedness}</div>`;
     }
 
+    // CORREÇÃO: Configurar download do STL
+    const linkDownload = document.getElementById('link-download-stl');
+    if (resultado.stl_url) {
+        linkDownload.href = resultado.stl_url;
+        linkDownload.style.display = 'inline-block';
+        linkDownload.textContent = '📥 Baixar Órtese STL';
+        console.log(`✅ STL disponível: ${resultado.stl_url}`);
+    } else {
+        linkDownload.style.display = 'none';
+        console.log('❌ Nenhum STL disponível para download');
+    }
+
     // Tipo de processamento (para debug)
     if (resultado.tipo_processamento) {
         document.getElementById('dimensoes').innerHTML += 
             `<div style="font-size: 12px; color: #666; margin-top: 10px;"><em>Tipo: ${resultado.tipo_processamento}</em></div>`;
-    }
-
-    // Configurar download do STL
-    if (resultado.stl_url) {
-        document.getElementById('link-download-stl').href = 
-            `${API_BASE}${resultado.stl_url.replace('/api', '')}`;
     }
 
     document.getElementById('resultado-processamento').classList.remove('hidden');

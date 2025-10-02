@@ -145,8 +145,16 @@
                 <div class="sucesso">
                     <h3>Órtese Gerada com Sucesso!</h3>
                     <p>Sua órtese personalizada está pronta para download.</p>
-                    
-                    <div class="acoes">
+        
+					
+					<div class="acoes">
+						<a id="link-download-stl" class="btn-primary" style="display: none;">
+							📥 Baixar Órtese STL
+						</a>
+						<button onclick="gerarOrtese()" class="btn-secondary">
+							Continuar
+						</button>
+					
                         <a id="link-download-stl" class="btn-primary">Baixar Arquivo STL</a>
                         <button onclick="reiniciarProcesso()" class="btn-secondary">Iniciar Novo Processo</button>
                     </div>

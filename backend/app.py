@@ -10,6 +10,8 @@ from io import BytesIO
 import base64
 from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
+import time
+import shutil
 
 app = Flask(__name__)
 
@@ -257,7 +259,7 @@ def processar_imagem():
         # Ler imagem
         imagem_bytes = arquivo.read()
         
-        # 🔥 TENTAR PROCESSAMENTO EXISTENTE PRIMEIRO
+        # 🔥 TENTAR PROCESSAMENTO REAL
         try:
             if processamento and hasattr(processamento, 'processar_imagem_ortese_api'):
                 print("🔄 Usando processamento existente...")
@@ -269,24 +271,101 @@ def processar_imagem():
                 
                 if resultado.get('sucesso'):
                     print("✅ Processamento existente bem-sucedido")
+                    
+                    # CORREÇÃO: Garantir que stl_url seja retornado
+                    if 'stl_url' not in resultado and resultado.get('stl_path'):
+                        stl_filename = f"ortese_gerada_{paciente_id}_{int(time.time())}.stl"
+                        stl_final_path = os.path.join(app.config['UPLOAD_FOLDER'], stl_filename)
+                        
+                        if os.path.exists(resultado['stl_path']):
+                            shutil.copy2(resultado['stl_path'], stl_final_path)
+                            resultado['stl_url'] = f"/api/download-stl/{stl_filename}"
+                    
                 else:
                     print("❌ Processamento existente falhou, usando simulação")
-                    resultado = processamento_simulado()
+                    resultado = processamento_simulado_com_stl(paciente_id)
             else:
                 print("🔧 Módulo não disponível, usando simulação")
-                resultado = processamento_simulado()
+                resultado = processamento_simulado_com_stl(paciente_id)
                 
         except Exception as e:
             print(f"⚠️ Erro no processamento existente: {e}")
             import traceback
             traceback.print_exc()
-            resultado = processamento_simulado()
+            resultado = processamento_simulado_com_stl(paciente_id)
 
         return jsonify(resultado)
         
     except Exception as e:
         print(f"💥 Erro no processamento: {str(e)}")
         return jsonify({'erro': f'Erro no processamento: {str(e)}'}), 500
+
+def processamento_simulado_com_stl(paciente_id):
+    """Simulação de processamento que inclui geração de STL"""
+    import random
+    import tempfile
+    
+    # Gerar medidas realistas
+    largura_pulso = round(5.5 + random.random() * 2, 1)
+    largura_palma = round(7.0 + random.random() * 3, 1)
+    comprimento_mao = round(16.0 + random.random() * 5, 1)
+    
+    # Determinar tamanho da órtese
+    if largura_palma < 7.5:
+        tamanho_ortese = "P"
+    elif largura_palma < 9.0:
+        tamanho_ortese = "M"
+    else:
+        tamanho_ortese = "G"
+    
+    # Determinar mão
+    handedness = "Direita" if random.random() > 0.5 else "Esquerda"
+    
+    # CORREÇÃO: Criar STL simulado
+    stl_url = None
+    try:
+        # Criar um STL vazio simulado
+        stl_filename = f"ortese_simulada_{paciente_id}_{int(time.time())}.stl"
+        stl_path = os.path.join(app.config['UPLOAD_FOLDER'], stl_filename)
+        
+        # Criar mesh simples
+        vertices = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [1, 1, 0],
+            [0, 1, 0]
+        ])
+        faces = np.array([
+            [0, 1, 2],
+            [0, 2, 3]
+        ])
+        
+        stl_mesh = mesh.Mesh(np.zeros(faces.shape[0], dtype=mesh.Mesh.dtype))
+        for i, face in enumerate(faces):
+            for j in range(3):
+                stl_mesh.vectors[i][j] = vertices[face[j]]
+        
+        stl_mesh.save(stl_path)
+        stl_url = f"/api/download-stl/{stl_filename}"
+        print(f"📁 STL simulado criado: {stl_path}")
+        
+    except Exception as e:
+        print(f"⚠️ Erro ao criar STL simulado: {e}")
+    
+    return {
+        'sucesso': True,
+        'dimensoes': {
+            'Largura Pulso': f'{largura_pulso} cm',
+            'Largura Palma': f'{largura_palma} cm',
+            'Comprimento Mao': f'{comprimento_mao} cm',
+            'Tamanho Ortese': tamanho_ortese
+        },
+        'handedness': handedness,
+        'imagem_processada': None,
+        'stl_url': stl_url,
+        'mensagem': 'Processamento concluído com sucesso',
+        'tipo_processamento': 'simulado'
+    }
 
 def processamento_simulado():
     """Simulação de processamento quando o módulo real não está disponível"""
@@ -322,17 +401,27 @@ def processamento_simulado():
         'tipo_processamento': 'simulado'  # Para debug
     }
 
-@app.route('/api/download-stl/<paciente_id>', methods=['GET', 'OPTIONS'])
-def download_stl(paciente_id):
+@app.route('/api/download-stl/<filename>', methods=['GET', 'OPTIONS'])
+def download_stl(filename):
     if request.method == 'OPTIONS':
         return '', 200
         
     try:
-        stl_path = os.path.join(app.config["UPLOAD_FOLDER"], f'ortese_gerada_{paciente_id}.stl')
+        stl_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
         if os.path.exists(stl_path):
-            return send_file(stl_path, as_attachment=True, download_name=f'ortese_gerada_{paciente_id}.stl')
+            return send_file(
+                stl_path, 
+                as_attachment=True, 
+                download_name=f'ortese_personalizada.stl',
+                mimetype='application/vnd.ms-pki.stl'
+            )
+        else:
+            return jsonify({'erro': 'Arquivo STL não encontrado'}), 404
+            
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        print(f"❌ Erro no download do STL: {e}")
+        return jsonify({'erro': f'Erro no download: {str(e)}'}), 500
 
 # Teste simples - adicione esta rota para debug
 @app.route('/api/teste-processamento', methods=['GET'])

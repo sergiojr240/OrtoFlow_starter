@@ -385,12 +385,9 @@ def pipeline_processamento_ortese(caminho_imagem, caminho_stl_saida=None, modo_m
     print("✅ Pipeline concluído com sucesso!")
     return caminho_stl_saida, imagem_resultado, None, dimensoes, handedness
 
-# Função para integrar com a API existente
-# Adicione esta função ao processamento_api.py
-
 def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl_path=None):
     """
-    Versão melhorada gradual - integra melhorias passo a passo
+    Versão corrigida do processamento - remove argumentos problemáticos
     """
     try:
         # Converter bytes para imagem
@@ -416,13 +413,11 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
             print("❌ Quadrado não detectado mesmo com método melhorado")
             escala_px_cm = 67.92  # Fallback
         
-        # Continuar com o processamento normal
+        # CORREÇÃO: Chamar pipeline sem argumentos problemáticos
         caminho_stl, imagem_processada, _, dimensoes, handedness = pipeline_processamento_ortese(
             temp_img_path, 
             caminho_stl_saida=None,
-            mostrar_imagens_matplotlib=False,
-            modo_manual=modo_manual,
-            modelo_base_stl_path=modelo_base_stl_path
+            modo_manual=modo_manual
         )
         
         # Limpar arquivo temporário
@@ -438,12 +433,21 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         if imagem_base64 is None:
             return {"erro": "Erro ao processar imagem para exibição"}
         
+        # CORREÇÃO: Se STL foi gerado, criar link para download
+        stl_url = None
+        if caminho_stl and os.path.exists(caminho_stl):
+            # Mover para pasta de uploads com nome do paciente
+            stl_filename = f"ortese_gerada_{int(time.time())}.stl"
+            stl_final_path = os.path.join(UPLOAD_FOLDER, stl_filename)
+            shutil.copy2(caminho_stl, stl_final_path)
+            stl_url = f"/api/download-stl/{stl_filename}"
+        
         resultado = {
             "sucesso": True,
             "dimensoes": dimensoes,
             "handedness": handedness,
             "imagem_processada": imagem_base64,
-            "stl_path": caminho_stl,
+            "stl_url": stl_url,
             "tipo_processamento": "melhorado"
         }
         
