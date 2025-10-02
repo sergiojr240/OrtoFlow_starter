@@ -296,10 +296,11 @@ function exibirResultadosProcessamento(resultado) {
         };
         imagemProcessada.onerror = function() {
             console.log("❌ Erro ao carregar imagem no frontend");
+            // Fallback para placeholder
+            imagemProcessada.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzY2NiI+SW1hZ2VtIHByb2Nlc3NhZGEgbsOjbyBkaXNwb27DrXZlbDwvdGV4dD48L3N2Zz4=';
         };
     } else {
         console.log("❌ Nenhuma imagem processada disponível");
-        // Imagem placeholder quando não há imagem processada
         imagemProcessada.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzY2NiI+SW1hZ2VtIHByb2Nlc3NhZGEgbsOjbyBkaXNwb27DrXZlbDwvdGV4dD48L3N2Zz4=';
         imagemProcessada.style.display = 'block';
     }
@@ -320,7 +321,28 @@ function exibirResultadosProcessamento(resultado) {
             `<div><strong>Mão Detectada:</strong> ${resultado.handedness}</div>`;
     }
 
-    // CORREÇÃO: Configurar download do STL
+    // Tipo de processamento (SEMPRE mostrar para debug)
+    const tipoProcessamento = resultado.tipo_processamento || 'desconhecido';
+    let tipoCor = '#666';
+    let tipoIcon = '🔧';
+    
+    if (tipoProcessamento.includes('completo')) {
+        tipoCor = '#27ae60';
+        tipoIcon = '✅';
+    } else if (tipoProcessamento.includes('fallback')) {
+        tipoCor = '#f39c12';
+        tipoIcon = '⚠️';
+    } else if (tipoProcessamento.includes('ultimo_recurso')) {
+        tipoCor = '#e74c3c';
+        tipoIcon = '🆘';
+    }
+    
+    document.getElementById('dimensoes').innerHTML += 
+        `<div style="font-size: 12px; color: ${tipoCor}; margin-top: 10px; border-top: 1px solid #eee; padding-top: 8px;">
+            <strong>${tipoIcon} Tipo de Processamento:</strong> ${tipoProcessamento}
+        </div>`;
+
+    // Configurar download do STL
     const linkDownload = document.getElementById('link-download-stl');
     if (resultado.stl_url) {
         linkDownload.href = resultado.stl_url;
@@ -329,13 +351,7 @@ function exibirResultadosProcessamento(resultado) {
         console.log(`✅ STL disponível: ${resultado.stl_url}`);
     } else {
         linkDownload.style.display = 'none';
-        console.log('❌ Nenhum STL disponível para download');
-    }
-
-    // Tipo de processamento (para debug)
-    if (resultado.tipo_processamento) {
-        document.getElementById('dimensoes').innerHTML += 
-            `<div style="font-size: 12px; color: #666; margin-top: 10px;"><em>Tipo: ${resultado.tipo_processamento}</em></div>`;
+        console.log('ℹ️ Nenhum STL disponível para download (funcionalidade futura)');
     }
 
     document.getElementById('resultado-processamento').classList.remove('hidden');

@@ -260,63 +260,30 @@ def processar_imagem():
         # Ler imagem
         imagem_bytes = arquivo.read()
         
-        # 🔥 TENTAR PROCESSAMENTO REAL PRIMEIRO
-        # 🔥 TENTAR PROCESSAMENTO REAL PRIMEIRO
-        try:
-            if processamento and hasattr(processamento, 'processar_imagem_ortese_api'):
-                print("🔄 Usando processamento REAL...")
-                resultado = processamento.processar_imagem_ortese_api(
-                    imagem_bytes, 
-                    modo_manual,
-                    MODELO_BASE_STL_PATH
-                )
-                
-                if resultado.get('sucesso'):
-                    print("✅ Processamento REAL bem-sucedido!")
-                    # CORREÇÃO: Garantir que stl_url seja retornado
-                    if 'stl_url' not in resultado and resultado.get('stl_path'):
-                        stl_filename = f"ortese_gerada_{paciente_id}_{int(time.time())}.stl"
-                        stl_final_path = os.path.join(app.config['UPLOAD_FOLDER'], stl_filename)
-                        
-                        if os.path.exists(resultado['stl_path']):
-                            shutil.copy2(resultado['stl_path'], stl_final_path)
-                            resultado['stl_url'] = f"/api/download-stl/{stl_filename}"
-                    
-                    return jsonify(resultado)
-                else:
-                    print(f"❌ Processamento REAL retornou erro: {resultado.get('erro', 'Erro desconhecido')}")
-                    # CORREÇÃO: Mesmo com erro, tentar usar dados parciais se disponíveis
-                    if resultado.get('dimensoes') and resultado.get('imagem_processada'):
-                        print("⚠️ Mas temos dados parciais, usando mesmo com erro...")
-                        resultado['sucesso'] = True  # Forçar sucesso para usar os dados
-                        resultado['mensagem'] = f"Processamento parcial: {resultado.get('erro')}"
-                        del resultado['erro']  # Remover o erro para o frontend
-                        return jsonify(resultado)
-                    else:
-                        print("🔄 Nenhum dado parcial, usando simulação...")
-                        resultado = processamento_simulado_com_stl(paciente_id)
-                        return jsonify(resultado)
-            else:
-                print("🔧 Módulo não disponível, usando simulação")
-                resultado = processamento_simulado_com_stl(paciente_id)
+        # SEMPRE usar processamento real (agora com fallbacks internos)
+        if processamento and hasattr(processamento, 'processar_imagem_ortese_api'):
+            print("🔄 Usando processamento REAL com fallbacks...")
+            resultado = processamento.processar_imagem_ortese_api(
+                imagem_bytes, 
+                modo_manual,
+                MODELO_BASE_STL_PATH
+            )
+            
+            if resultado.get('sucesso'):
+                print(f"✅ Processamento REAL bem-sucedido! Tipo: {resultado.get('tipo_processamento', 'desconhecido')}")
                 return jsonify(resultado)
-                
-        except Exception as e:
-            print(f"⚠️ Erro no processamento REAL: {e}")
-            import traceback
-            traceback.print_exc()
-            print("🔄 Usando simulação devido a exceção...")
-            resultado = processamento_simulado_com_stl(paciente_id)
-            return jsonify(resultado)
-        
-        # 🔄 SE O PROCESSAMENTO REAL FALHOU, USAR SIMULAÇÃO
-        print("🔄 Usando processamento SIMULADO...")
-        resultado = processamento_simulado_com_stl(paciente_id)
-        return jsonify(resultado)
+            else:
+                print(f"❌ Processamento REAL falhou: {resultado.get('erro', 'Erro desconhecido')}")
+                # Mesmo com erro, retornar o resultado para o frontend lidar
+                return jsonify(resultado)
+        else:
+            print("🔧 Módulo não disponível")
+            return jsonify({'erro': 'Módulo de processamento não disponível'})
         
     except Exception as e:
         print(f"💥 Erro no processamento: {str(e)}")
         return jsonify({'erro': f'Erro no processamento: {str(e)}'}), 500
+
 
 def processamento_simulado_com_stl(paciente_id):
     """Simulação de processamento que inclui geração de STL"""
