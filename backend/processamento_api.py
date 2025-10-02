@@ -386,9 +386,11 @@ def pipeline_processamento_ortese(caminho_imagem, caminho_stl_saida=None, modo_m
     return caminho_stl_saida, imagem_resultado, None, dimensoes, handedness
 
 # Função para integrar com a API existente
-def processar_imagem_ortese_api (imagem_bytes, modo_manual=False, modelo_base_stl_path=None):
+# Adicione esta função ao processamento_api.py
+
+def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl_path=None):
     """
-    Versão melhorada para a API
+    Versão melhorada gradual - integra melhorias passo a passo
     """
     try:
         # Converter bytes para imagem
@@ -398,15 +400,32 @@ def processar_imagem_ortese_api (imagem_bytes, modo_manual=False, modelo_base_st
         if imagem is None:
             return {"erro": "Não foi possível carregar a imagem"}
         
-        # Salvar temporariamente
-        temp_img_path = "temp_input.jpg"
+        # Usar o pipeline existente como base
+        temp_img_path = "temp_input_melhorado.jpg"
         cv.imwrite(temp_img_path, imagem)
         
-        # Processar
-        caminho_stl, imagem_processada, _, dimensoes, handedness = pipeline_processamento_ortese(
-            temp_img_path, modo_manual=modo_manual)
+        # Primeiro, vamos apenas melhorar a detecção do quadrado azul
+        contorno_quadrado, dimensoes_quadrado, mascara = detectar_quadrado_azul(imagem)
         
-        # Limpar
+        escala_px_cm = None
+        if contorno_quadrado is not None:
+            x, y, w, h = dimensoes_quadrado
+            escala_px_cm = ((w + h) / 2) / TAMANHO_QUADRADO_CM
+            print(f"✅ Quadrado azul detectado (melhorado): {w}x{h} px, escala: {escala_px_cm:.2f} px/cm")
+        else:
+            print("❌ Quadrado não detectado mesmo com método melhorado")
+            escala_px_cm = 67.92  # Fallback
+        
+        # Continuar com o processamento normal
+        caminho_stl, imagem_processada, _, dimensoes, handedness = pipeline_processamento_ortese(
+            temp_img_path, 
+            caminho_stl_saida=None,
+            mostrar_imagens_matplotlib=False,
+            modo_manual=modo_manual,
+            modelo_base_stl_path=modelo_base_stl_path
+        )
+        
+        # Limpar arquivo temporário
         if os.path.exists(temp_img_path):
             os.remove(temp_img_path)
         
@@ -414,17 +433,25 @@ def processar_imagem_ortese_api (imagem_bytes, modo_manual=False, modelo_base_st
             return {"erro": "Não foi possível processar a imagem"}
         
         # Converter imagem para base64
-        _, buffer = cv.imencode(".jpg", imagem_processada)
-        imagem_base64 = base64.b64encode(buffer).decode("utf-8")
+        imagem_base64 = imagem_para_base64(imagem_processada)
         
-        return {
+        if imagem_base64 is None:
+            return {"erro": "Erro ao processar imagem para exibição"}
+        
+        resultado = {
             "sucesso": True,
             "dimensoes": dimensoes,
             "handedness": handedness,
-            "imagem_processada": f"data:image/jpeg;base64,{imagem_base64}",
-            "stl_path": caminho_stl
+            "imagem_processada": imagem_base64,
+            "stl_path": caminho_stl,
+            "tipo_processamento": "melhorado"
         }
         
+        print("✅ Processamento melhorado concluído!")
+        return resultado
+        
     except Exception as e:
-        print(f"❌ Erro no processamento: {e}")
-        return {"erro": f"Erro no processamento: {str(e)}"}
+        print(f"❌ Erro no processamento melhorado: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"erro": f"Erro no processamento melhorado: {str(e)}"}
