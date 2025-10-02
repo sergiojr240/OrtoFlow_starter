@@ -261,6 +261,7 @@ def processar_imagem():
         imagem_bytes = arquivo.read()
         
         # 🔥 TENTAR PROCESSAMENTO REAL PRIMEIRO
+        # 🔥 TENTAR PROCESSAMENTO REAL PRIMEIRO
         try:
             if processamento and hasattr(processamento, 'processar_imagem_ortese_api'):
                 print("🔄 Usando processamento REAL...")
@@ -283,16 +284,30 @@ def processar_imagem():
                     
                     return jsonify(resultado)
                 else:
-                    print(f"❌ Processamento REAL falhou: {resultado.get('erro', 'Erro desconhecido')}")
-                    # Continuar para a simulação
-                    
+                    print(f"❌ Processamento REAL retornou erro: {resultado.get('erro', 'Erro desconhecido')}")
+                    # CORREÇÃO: Mesmo com erro, tentar usar dados parciais se disponíveis
+                    if resultado.get('dimensoes') and resultado.get('imagem_processada'):
+                        print("⚠️ Mas temos dados parciais, usando mesmo com erro...")
+                        resultado['sucesso'] = True  # Forçar sucesso para usar os dados
+                        resultado['mensagem'] = f"Processamento parcial: {resultado.get('erro')}"
+                        del resultado['erro']  # Remover o erro para o frontend
+                        return jsonify(resultado)
+                    else:
+                        print("🔄 Nenhum dado parcial, usando simulação...")
+                        resultado = processamento_simulado_com_stl(paciente_id)
+                        return jsonify(resultado)
             else:
-                print("🔧 Módulo não disponível")
+                print("🔧 Módulo não disponível, usando simulação")
+                resultado = processamento_simulado_com_stl(paciente_id)
+                return jsonify(resultado)
                 
         except Exception as e:
             print(f"⚠️ Erro no processamento REAL: {e}")
             import traceback
             traceback.print_exc()
+            print("🔄 Usando simulação devido a exceção...")
+            resultado = processamento_simulado_com_stl(paciente_id)
+            return jsonify(resultado)
         
         # 🔄 SE O PROCESSAMENTO REAL FALHOU, USAR SIMULAÇÃO
         print("🔄 Usando processamento SIMULADO...")

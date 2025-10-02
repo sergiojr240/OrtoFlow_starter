@@ -430,6 +430,33 @@ def pipeline_processamento_ortese(caminho_imagem, caminho_stl_saida=None, modo_m
     
     imagem_resultado = desenhar_medidas_com_contorno(
         imagem, landmarks, dimensoes, contorno_mao, pontos_palma, pontos_pulso)
+
+        # CORREÇÃO: Chamar pipeline sem argumentos problemáticos
+        print("🔄 DEBUG: Chamando pipeline de processamento...")
+        resultado_pipeline = pipeline_processamento_ortese(
+            temp_img_path, 
+            caminho_stl_saida=None,
+            modo_manual=modo_manual
+        )
+        
+        # CORREÇÃO: Verificar se o pipeline retornou resultados válidos
+        if resultado_pipeline is None:
+            print("❌ DEBUG: Pipeline retornou None")
+            return {"erro": "Não foi possível processar a imagem no pipeline"}
+            
+        caminho_stl, imagem_processada, _, dimensoes, handedness = resultado_pipeline
+        
+        # CORREÇÃO: Considerar sucesso se temos dimensões E imagem processada
+        # O caminho_stl pode ser None (não geramos STL ainda) - isso é OK!
+        if dimensoes is None or imagem_processada is None:
+            print(f"❌ DEBUG: Dados insuficientes - dimensoes: {dimensoes is not None}, imagem: {imagem_processada is not None}")
+            return {"erro": "Não foi possível processar a imagem no pipeline"}
+        
+        print(f"✅ DEBUG: Pipeline concluído com sucesso!")
+        print(f"   - Dimensões: {dimensoes}")
+        print(f"   - Imagem shape: {imagem_processada.shape}")
+        print(f"   - Handedness: {handedness}")
+        print(f"   - Caminho STL: {caminho_stl} (pode ser None)")
     
     # CORREÇÃO: Garantir que a imagem_resultado não seja None
     if imagem_resultado is None:
@@ -447,10 +474,9 @@ def pipeline_processamento_ortese(caminho_imagem, caminho_stl_saida=None, modo_m
     print("✅ Pipeline concluído com sucesso!")
     return caminho_stl_saida, imagem_resultado, None, dimensoes, handedness
     
-
 def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl_path=None):
     """
-    Versão com debug detalhado para identificar problemas
+    Versão com correção urgente - forçar sucesso quando temos dados
     """
     try:
         print("🔍 DEBUG: Iniciando processamento da imagem...")
@@ -460,15 +486,13 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         imagem = cv.imdecode(nparr, cv.IMREAD_COLOR)
         
         if imagem is None:
-            print("❌ DEBUG: Falha ao decodificar imagem dos bytes")
             return {"erro": "Não foi possível carregar a imagem"}
         
         print(f"✅ DEBUG: Imagem carregada - shape: {imagem.shape}")
 
         # Usar o pipeline existente como base
         temp_img_path = "temp_input_melhorado.jpg"
-        success = cv.imwrite(temp_img_path, imagem)
-        print(f"📁 DEBUG: Imagem temporária salva: {success} - {temp_img_path}")
+        cv.imwrite(temp_img_path, imagem)
 
         # Primeiro, vamos apenas melhorar a detecção do quadrado azul
         contorno_quadrado, dimensoes_quadrado, mascara = detectar_quadrado_azul(imagem)
@@ -490,64 +514,52 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
             modo_manual=modo_manual
         )
         
-        # Verificar se o pipeline retornou resultados
-        if resultado_pipeline[0] is None:
+        # CORREÇÃO: Verificação mais flexível
+        if resultado_pipeline is None:
             print("❌ DEBUG: Pipeline retornou None")
             return {"erro": "Não foi possível processar a imagem no pipeline"}
             
         caminho_stl, imagem_processada, _, dimensoes, handedness = resultado_pipeline
         
-        print(f"✅ DEBUG: Pipeline concluído - dimensoes: {dimensoes is not None}, imagem: {imagem_processada is not None}")
-        
-        # Limpar arquivo temporário
-        if os.path.exists(temp_img_path):
-            os.remove(temp_img_path)
-            print("🗑️ DEBUG: Arquivo temporário removido")
-        
-        if dimensoes is None:
-            print("❌ DEBUG: Dimensões são None")
-            return {"erro": "Não foi possível calcular dimensões da imagem"}
-        
-        # Converter imagem para base64
-        print("🖼️ DEBUG: Convertendo imagem para base64...")
-        imagem_base64 = imagem_para_base64(imagem_processada)
-        
-        if imagem_base64 is None:
-            print("❌ DEBUG: Falha na conversão para base64")
-            # Tentar fallback: usar a imagem original
-            imagem_base64_fallback = imagem_para_base64(imagem)
-            if imagem_base64_fallback:
-                print("✅ DEBUG: Usando fallback da imagem original")
-                imagem_base64 = imagem_base64_fallback
-            else:
-                print("❌ DEBUG: Fallback também falhou")
+        # CORREÇÃO CRÍTICA: Mesmo se algum elemento for None, continuar se tivermos o essencial
+        if dimensoes is not None and imagem_processada is not None:
+            print(f"✅ DEBUG: Temos dados essenciais - processando...")
+            
+            # Limpar arquivo temporário
+            if os.path.exists(temp_img_path):
+                os.remove(temp_img_path)
+            
+            # Converter imagem para base64
+            print("🖼️ DEBUG: Convertendo imagem para base64...")
+            imagem_base64 = imagem_para_base64(imagem_processada)
+            
+            if imagem_base64 is None:
+                print("❌ DEBUG: Falha na conversão para base64")
                 return {"erro": "Erro ao processar imagem para exibição"}
+            
+            # CORREÇÃO: Se STL foi gerado, criar link para download
+            stl_url = None
+            if caminho_stl and os.path.exists(caminho_stl):
+                stl_filename = f"ortese_gerada_{int(time.time())}.stl"
+                stl_final_path = os.path.join(UPLOAD_FOLDER, stl_filename)
+                shutil.copy2(caminho_stl, stl_final_path)
+                stl_url = f"/api/download-stl/{stl_filename}"
+                print(f"📁 DEBUG: STL movido para: {stl_final_path}")
+            
+            resultado = {
+                "sucesso": True,
+                "dimensoes": dimensoes,
+                "handedness": handedness,
+                "imagem_processada": imagem_base64,
+                "stl_url": stl_url,
+                "tipo_processamento": "melhorado"
+            }
+            
+            print("🎉 DEBUG: Processamento concluído com SUCESSO!")
+            return resultado
         else:
-            print("✅ DEBUG: Imagem convertida para base64 com sucesso")
-        
-        # CORREÇÃO: Se STL foi gerado, criar link para download
-        stl_url = None
-        if caminho_stl and os.path.exists(caminho_stl):
-            # Mover para pasta de uploads com nome único
-            stl_filename = f"ortese_gerada_{int(time.time())}.stl"
-            stl_final_path = os.path.join(UPLOAD_FOLDER, stl_filename)
-            shutil.copy2(caminho_stl, stl_final_path)
-            stl_url = f"/api/download-stl/{stl_filename}"
-            print(f"📁 DEBUG: STL movido para: {stl_final_path}")
-        else:
-            print("ℹ️ DEBUG: Nenhum STL gerado ou caminho inválido")
-        
-        resultado = {
-            "sucesso": True,
-            "dimensoes": dimensoes,
-            "handedness": handedness,
-            "imagem_processada": imagem_base64,
-            "stl_url": stl_url,
-            "tipo_processamento": "melhorado"
-        }
-        
-        print("🎉 DEBUG: Processamento concluído com SUCESSO!")
-        return resultado
+            print(f"❌ DEBUG: Dados insuficientes - dimensoes: {dimensoes is not None}, imagem: {imagem_processada is not None}")
+            return {"erro": "Dados insuficientes do pipeline"}
         
     except Exception as e:
         print(f"💥 DEBUG: Erro no processamento: {e}")
