@@ -13,7 +13,6 @@ let dadosPaciente = {};
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Sistema inicializado');
     inicializarEventos();
-    // Removido o await daqui - testarConexaoAPI será chamada quando necessário
 });
 
 function inicializarEventos() {

@@ -45,17 +45,13 @@ def options_handler(path):
 
 import importlib.util
 
-# Caminho para o modelo STL base fornecido pelo usuário
-# Certifique-se de que este arquivo esteja acessível no ambiente de execução
-
 # Caminho para o modelo STL base 
 MODELO_BASE_STL_PATH = os.path.join(os.path.dirname(__file__), 'models', 'modelo_base.stl')
 
-# Verificar e criar caminhos alternativos
 if not os.path.exists(MODELO_BASE_STL_PATH):
-    print(f"⚠️ Modelo base não encontrado em: {MODELO_BASE_STL_PATH}")
+    print(f"Modelo base não encontrado em: {MODELO_BASE_STL_PATH}")
     
-    # Tentar caminhos alternativos
+    # Caminhos alternativos
     caminhos_alternativos = [
         os.path.join(os.path.dirname(__file__), '..', 'models', 'modelo_base.stl'),
         os.path.join(os.path.dirname(__file__), 'models', 'modelo_base.stl'),
@@ -66,17 +62,17 @@ if not os.path.exists(MODELO_BASE_STL_PATH):
     for caminho in caminhos_alternativos:
         if os.path.exists(caminho):
             MODELO_BASE_STL_PATH = caminho
-            print(f"✅ Modelo base encontrado em: {caminho}")
+            print(f"Modelo base encontrado em: {caminho}")
             break
     else:
-        print("❌ Modelo base não encontrado em nenhum caminho alternativo")
-        # Criar diretório para evitar erros
+        print("Modelo base não encontrado em nenhum caminho alternativo")
+        # diretório para evitar erros
         os.makedirs(os.path.dirname(MODELO_BASE_STL_PATH), exist_ok=True)
 else:
-    print(f"✅ Modelo base encontrado: {MODELO_BASE_STL_PATH}")
+    print(f"Modelo base encontrado: {MODELO_BASE_STL_PATH}")
 
 
-# Carregar módulo de processamento
+# Módulo de processamento
 try:
     spec = importlib.util.spec_from_file_location("processamento",
                                                  os.path.join(os.path.dirname(__file__), "processamento_api.py"))
@@ -97,18 +93,6 @@ def home():
         "cors": "enabled"
     })
 
-@app.route('/api/health', methods=['GET', 'OPTIONS'])
-def health():
-    return jsonify({
-        "status": "healthy", 
-        "cors": "working",
-        "timestamp": "2024-01-01"
-    })
-
-@app.route('/health', methods=['GET', 'OPTIONS'])
-def health_alt():
-    return jsonify({"status": "healthy", "route": "alternativa"})
-
 # ===== CADASTRO DE PACIENTE =====
 @app.route('/api/cadastrar-paciente', methods=['POST', 'OPTIONS'])
 def cadastrar_paciente():
@@ -116,7 +100,6 @@ def cadastrar_paciente():
         return '', 200
         
     try:
-        # CORREÇÃO: Usar get_json() em vez de request.json
         data = request.get_json(silent=True) or {}
         print("Dados recebidos:", data)
         
@@ -127,11 +110,11 @@ def cadastrar_paciente():
         if not nome or not idade:
             return jsonify({'erro': 'Nome e idade são obrigatórios'}), 400
 
-        # Gerar ID único
+        # ID único
         paciente_id = 'P' + str(uuid.uuid4())[:8].upper()
         print(f"Novo paciente: {nome} - ID: {paciente_id}")
 
-        # Gerar QR Code
+        # QR Code
         qr = qrcode.QRCode(version=1, box_size=10, border=4)
         qr.add_data(paciente_id)
         qr.make(fit=True)
@@ -173,7 +156,7 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
         x_quad = margin
         y_quad = height - margin - quad_size
 
-        # Desenhar retângulo azul preenchido (SEM área branca interna)
+        # Retângulo azul preenchido
         c.setFillColor(colors.HexColor('#0000FE'))  # azul
         c.rect(x_quad, y_quad, quad_size, quad_size, stroke=0, fill=1)
 
@@ -183,20 +166,20 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
         qr.add_data(qr_payload)
         qr.make(fit=True)
         
-        # Criar QR code sem fundo branco
+        # QR code sem fundo branco
         qr_img = qr.make_image(fill_color="black", back_color="blue")  # back_color=None para fundo transparente
         qr_img = qr_img.convert("RGBA")
         
-        # Redimensionar QR code para caber dentro do quadrado azul
-        qr_size = int(quad_size * 0.7)  # 70% do tamanho do quadrado
+        # Redimensionar QR code
+        qr_size = int(quad_size * 0.7)
         qr_img = qr_img.resize((qr_size, qr_size))
         
-        # Salvar QR code temporariamente
+        # QR code temporario
         qr_buffer = BytesIO()
         qr_img.save(qr_buffer, format='PNG')
         qr_buffer.seek(0)
         
-        # Posicionar QR code no centro do quadrado azul
+        # Posicionar QR code
         qr_x = x_quad + (quad_size - qr_size) / 2
         qr_y = y_quad + (quad_size - qr_size) / 2
         c.drawImage(ImageReader(qr_buffer), qr_x, qr_y, width=qr_size, height=qr_size, mask='auto')
@@ -212,7 +195,7 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
         c.drawRightString(x_right, y_top - 15, f"Idade: {idade} anos")
         c.drawRightString(x_right, y_top - 30, f"ID: {paciente_id}")
 
-        # --- Régua graduada (~10 cm) no canto inferior direito ---
+        # --- Régua graduada (10 cm) no canto inferior direito ---
         ruler_cm = 10.0
         ruler_w = ruler_cm * cm_pt
         ruler_x = width - margin - ruler_w
@@ -222,8 +205,7 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
         c.setLineWidth(1)
         c.line(ruler_x, ruler_y, ruler_x + ruler_w, ruler_y)
 
-        # Ticks e legendas
-        for i in range(11):  # 0..10 (11 marcas)
+        for i in range(11):
             x_tick = ruler_x + (i * (ruler_w / 10.0))
             # marca maior a cada 5 (0cm e 5cm e 10cm)
             if i % 5 == 0:
@@ -240,7 +222,7 @@ def gerar_folha_padrao(paciente_id, nome, idade, output_path):
         c.setFont("Helvetica", 8)
         c.drawRightString(ruler_x + ruler_w, ruler_y + 22, "cm")
 
-        # Rodapé informativo
+        # Rodapé
         c.setFont("Helvetica", 8)
         c.drawString(margin, 10, "Imprima em escala 100% (sem ajuste 'Ajustar à página') para garantir precisão da régua.")
 
@@ -266,6 +248,7 @@ def baixar_folha(paciente_id):
         return jsonify({'erro': str(e)}), 500
 
 @app.route('/api/processar-imagem', methods=['POST', 'OPTIONS'])
+
 def processar_imagem():
     if request.method == 'OPTIONS':
         return '', 200
@@ -281,14 +264,14 @@ def processar_imagem():
         if arquivo.filename == '':
             return jsonify({'erro': 'Nome de arquivo vazio'}), 400
 
-        print(f"📸 Processando imagem para paciente: {paciente_id}")
+        print(f"Processando imagem para paciente: {paciente_id}")
 
         # Ler imagem
         imagem_bytes = arquivo.read()
         
-        # SEMPRE usar processamento real (agora com fallbacks internos)
+        # Processamento real (agora com fallbacks internos)
         if processamento and hasattr(processamento, 'processar_imagem_ortese_api'):
-            print("🔄 Usando processamento REAL com fallbacks...")
+            print("Usando processamento REAL com fallbacks...")
             resultado = processamento.processar_imagem_ortese_api(
                 imagem_bytes, 
                 modo_manual,
@@ -296,48 +279,45 @@ def processar_imagem():
             )
             
             if resultado.get('sucesso'):
-                print(f"✅ Processamento REAL bem-sucedido! Tipo: {resultado.get('tipo_processamento', 'desconhecido')}")
+                print(f"Processamento REAL bem-sucedido! Tipo: {resultado.get('tipo_processamento', 'desconhecido')}")
                 return jsonify(resultado)
             else:
-                print(f"❌ Processamento REAL falhou: {resultado.get('erro', 'Erro desconhecido')}")
-                # Mesmo com erro, retornar o resultado para o frontend lidar
+                print(f"Processamento REAL falhou: {resultado.get('erro', 'Erro desconhecido')}")
                 return jsonify(resultado)
         else:
-            print("🔧 Módulo não disponível")
+            print("Módulo não disponível")
             return jsonify({'erro': 'Módulo de processamento não disponível'})
         
     except Exception as e:
-        print(f"💥 Erro no processamento: {str(e)}")
+        print(f"Erro no processamento: {str(e)}")
         return jsonify({'erro': f'Erro no processamento: {str(e)}'}), 500
 
 def processamento_simulado_com_stl(paciente_id):
     """Simulação de processamento que inclui geração de STL"""
     import random
     
-    # Gerar medidas realistas
+    # Medidas realistas
     largura_pulso = round(5.5 + random.random() * 2, 1)
     largura_palma = round(7.0 + random.random() * 3, 1)
     comprimento_mao = round(16.0 + random.random() * 5, 1)
     
     # Determinar tamanho da órtese
-    if largura_palma < 7.5:
+    if largura_pulso < 7.5:
         tamanho_ortese = "P"
-    elif largura_palma < 9.0:
+    elif largura_pulso < 9.0:
         tamanho_ortese = "M"
     else:
         tamanho_ortese = "G"
     
-    # Determinar mão
+    # Determinar lado da mão
     handedness = "Direita" if random.random() > 0.5 else "Esquerda"
     
-    # CORREÇÃO: Criar STL simulado
     stl_url = None
     try:
-        # Criar um STL vazio simulado
         stl_filename = f"ortese_simulada_{paciente_id}_{int(time.time())}.stl"
         stl_path = os.path.join(app.config['UPLOAD_FOLDER'], stl_filename)
         
-        # CORREÇÃO: Importar mesh aqui para evitar problemas de escopo
+        #Importar mesh aqui para evitar problemas de escopo
         from stl import mesh
         
         # Criar mesh simples
@@ -359,20 +339,19 @@ def processamento_simulado_com_stl(paciente_id):
         
         stl_mesh.save(stl_path)
         stl_url = f"/api/download-stl/{stl_filename}"
-        print(f"📁 STL simulado criado: {stl_path}")
+        print(f"STL simulado criado: {stl_path}")
         
     except Exception as e:
-        print(f"⚠️ Erro ao criar STL simulado: {e}")
-        # Criar um arquivo STL vazio como fallback
+        print(f"Erro ao criar STL simulado: {e}")
         try:
             stl_filename = f"ortese_simulada_{paciente_id}_{int(time.time())}.stl"
             stl_path = os.path.join(app.config['UPLOAD_FOLDER'], stl_filename)
             with open(stl_path, 'w') as f:
                 f.write("STL simulado - arquivo vazio")
             stl_url = f"/api/download-stl/{stl_filename}"
-            print(f"📁 STL simulado (fallback) criado: {stl_path}")
+            print(f"STL simulado (fallback) criado: {stl_path}")
         except Exception as e2:
-            print(f"❌ Falha total ao criar STL simulado: {e2}")
+            print(f"Falha total ao criar STL simulado: {e2}")
     
     return {
         'sucesso': True,
@@ -390,7 +369,6 @@ def processamento_simulado_com_stl(paciente_id):
     }
 
 def processamento_simulado():
-    """Simulação de processamento quando o módulo real não está disponível"""
     import random
     
     # Gerar medidas realistas com alguma variação
@@ -423,19 +401,17 @@ def processamento_simulado():
         'tipo_processamento': 'simulado'  # Para debug
     }
 
-# No arquivo app.py, atualize a rota de download:
-
 @app.route('/api/download-stl/<filename>', methods=['GET'])
 def download_stl(filename):
     """Faz download do arquivo STL gerado."""
     try:
         stl_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         
-        print(f"📥 Tentando fazer download do arquivo: {stl_path}")
+        print(f"Tentando fazer download do arquivo: {stl_path}")
         
         if os.path.exists(stl_path):
             file_size = os.path.getsize(stl_path)
-            print(f"✅ Arquivo encontrado: {stl_path} ({file_size} bytes)")
+            print(f"Arquivo encontrado: {stl_path} ({file_size} bytes)")
             
             return send_file(
                 stl_path,
@@ -444,23 +420,22 @@ def download_stl(filename):
                 mimetype='application/vnd.ms-pki.stl'
             )
         else:
-            print(f"❌ Arquivo não encontrado: {stl_path}")
-            # Listar arquivos no diretório para debug
+            print(f"Arquivo não encontrado: {stl_path}")
             files_in_dir = os.listdir(app.config['UPLOAD_FOLDER'])
-            print(f"📁 Arquivos no diretório {app.config['UPLOAD_FOLDER']}: {files_in_dir}")
+            print(f"Arquivos no diretório {app.config['UPLOAD_FOLDER']}: {files_in_dir}")
             
             return jsonify({'erro': 'Arquivo STL não encontrado'}), 404
             
     except Exception as e:
-        print(f"❌ Erro no download: {str(e)}")
+        print(f"Erro no download: {str(e)}")
         return jsonify({'erro': f'Erro no download: {str(e)}'}), 500
 
-# Teste simples - adicione esta rota para debug
+
 @app.route('/api/teste-processamento', methods=['GET'])
 def teste_processamento():
     """Rota para testar se o processamento está funcionando"""
     try:
-        print("🧪 Testando processamento...")
+        print("Testando processamento...")
         
         # Verificar se o módulo foi carregado
         if processamento is None:
@@ -468,13 +443,13 @@ def teste_processamento():
         
         # Verificar funções disponíveis
         funcoes = [func for func in dir(processamento) if not func.startswith('_')]
-        print(f"📋 Funções disponíveis: {funcoes}")
+        print(f"Funções disponíveis: {funcoes}")
         
-        # Testar detecção de quadrado azul
+        # Teste detecção de quadrado azul
         if hasattr(processamento, 'detectar_quadrado_azul'):
-            print("✅ Função detectar_quadrado_azul disponível")
+            print("Função detectar_quadrado_azul disponível")
         else:
-            print("❌ Função detectar_quadrado_azul não disponível")
+            print("Função detectar_quadrado_azul não disponível")
             
         return jsonify({
             "status": "sucesso",
@@ -486,7 +461,6 @@ def teste_processamento():
         return jsonify({"status": "erro", "mensagem": str(e)})
 
 def processamento_fallback(paciente_id):
-    """Fallback extremamente simples"""
     import random
     
     return {

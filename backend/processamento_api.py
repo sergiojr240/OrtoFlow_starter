@@ -29,7 +29,6 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
 def imagem_para_base64(imagem):
-    """Converte imagem OpenCV para base64."""
     try:
         if imagem is None or imagem.size == 0:
             return None
@@ -55,7 +54,6 @@ def imagem_para_base64(imagem):
         return None
 
 def detectar_quadrado_azul(imagem, debug=False):
-    """Detecta o quadrado azul na imagem."""
     try:
         imagem_hsv = cv.cvtColor(imagem, cv.COLOR_BGR2HSV)
         mascara = cv.inRange(imagem_hsv, LOWER_BLUE, UPPER_BLUE)
@@ -93,7 +91,6 @@ def detectar_quadrado_azul(imagem, debug=False):
         return None, None, None
 
 def calcular_dimensoes_simplificado(landmarks, escala_px_cm, imagem_shape):
-    """Calcula dimensões usando multiplicadores fixos."""
     try:
         altura, largura = imagem_shape[:2]
         
@@ -138,7 +135,6 @@ def calcular_dimensoes_simplificado(landmarks, escala_px_cm, imagem_shape):
         return None
 
 def corrigir_detecao_mao(landmarks, handedness_detectado, imagem_shape):
-    """Corrige a detecção da mão (direita/esquerda) que pode estar invertida."""
     try:
         altura, largura = imagem_shape[:2]
         
@@ -154,21 +150,19 @@ def corrigir_detecao_mao(landmarks, handedness_detectado, imagem_shape):
         else:
             mao_corrigida = "Left"
             
-        print(f"🔧 Correção de mão: Detectado='{handedness_detectado}', Corrigido='{mao_corrigida}'")
-        print(f"   📍 Polegar: {polegar_ponta}, Mindinho: {mindinho_ponta}")
+        print(f"Correção de mão: Detectado='{handedness_detectado}', Corrigido='{mao_corrigida}'")
+        print(f"Polegar: {polegar_ponta}, Mindinho: {mindinho_ponta}")
         
         return mao_corrigida
         
     except Exception as e:
-        print(f"⚠️ Erro na correção da mão: {e}")
+        print(f"Erro na correção da mão: {e}")
         return handedness_detectado
 
 def desenhar_medidas_simplificado(imagem, landmarks, dimensoes, contorno_quadrado=None):
-    """Desenha as medidas na imagem de forma simplificada."""
     img_com_medidas = imagem.copy()
     altura, largura = imagem.shape[:2]
     
-    # Desenhar contorno preto no quadrado de referência
     if contorno_quadrado is not None:
         cv.drawContours(img_com_medidas, [contorno_quadrado], 0, (0, 0, 0), 3)  # Preto
     
@@ -193,7 +187,6 @@ def desenhar_medidas_simplificado(imagem, landmarks, dimensoes, contorno_quadrad
               ((p0[0] + p12[0]) // 2 + 10, (p0[1] + p12[1]) // 2),
               cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
     
-    # LINHA DO PULSO CORRIGIDA - Perpendicular ao comprimento, centrada no ponto 0
     # Calcular vetor do comprimento (0->12)
     vetor_comprimento = (p12[0] - p0[0], p12[1] - p0[1])
     
@@ -224,7 +217,7 @@ def desenhar_medidas_simplificado(imagem, landmarks, dimensoes, contorno_quadrad
                (p0[1] + ponto_pulso_inicio[1] + ponto_pulso_fim[1]) // 3),
               cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
     
-    # DESENHAR TODOS OS LANDMARKS (pontos da mão)
+    # TODOS OS LANDMARKS (pontos da mão)
     for i, landmark in enumerate(landmarks):
         x = int(landmark[0] * largura)
         y = int(landmark[1] * altura)
@@ -246,25 +239,24 @@ def desenhar_medidas_simplificado(imagem, landmarks, dimensoes, contorno_quadrad
     return img_com_medidas
 
 def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path):
-    """Gera STL usando a lógica do perímetro - VERSÃO COMPLETAMENTE CORRIGIDA."""
     try:
-        print(f"🔍 Procurando modelo base em: {modelo_base_path}")
+        print(f"Procurando modelo base em: {modelo_base_path}")
         
         if not os.path.exists(modelo_base_path):
-            print(f"❌ Modelo base não encontrado em: {modelo_base_path}")
+            print(f"Modelo base não encontrado em: {modelo_base_path}")
             return False
         
-        print(f"✅ Modelo base encontrado no caminho original")
+        print(f"Modelo base encontrado no caminho original")
         
         # Carregar modelo base
-        print(f"📁 Carregando modelo STL: {modelo_base_path}")
+        print(f"Carregando modelo STL: {modelo_base_path}")
         ortese_base = mesh.Mesh.from_file(modelo_base_path)
-        print(f"✅ Modelo carregado: {len(ortese_base.vectors)} triângulos")
+        print(f"Modelo carregado: {len(ortese_base.vectors)} triângulos")
         
         # Obter largura do pulso
         largura_pulso_cm = dimensoes.get("Largura Pulso", 0.0)
         if largura_pulso_cm == 0.0:
-            print("❌ Largura do pulso não encontrada nas dimensões")
+            print("Largura do pulso não encontrada nas dimensões")
             return False
         
         # Calcular fator de escala baseado no perímetro
@@ -272,7 +264,7 @@ def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path)
         perimetro_template = 10.0
         fator_escala = perimetro_paciente / perimetro_template
         
-        print(f"📏 Escalonamento STL:")
+        print(f"   Escalonamento STL:")
         print(f"   Pulso: {largura_pulso_cm:.2f}cm")
         print(f"   Perímetro: {perimetro_paciente:.2f}cm")
         print(f"   Fator: {fator_escala:.3f}")
@@ -283,7 +275,7 @@ def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path)
         
         # Espelhar para mão esquerda (se necessário)
         if handedness == "Left":
-            print("🔄 Espelhando para mão esquerda")
+            print("Espelhando para mão esquerda")
             # Inverter o eixo X para espelhar
             ortese_escalada.vectors[:,:,0] *= -1.0
         
@@ -292,12 +284,12 @@ def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path)
         
         # Salvar
         ortese_escalada.save(output_path)
-        print(f"✅ STL salvo: {output_path}")
+        print(f"STL salvo: {output_path}")
         
         # Verificar se o arquivo foi realmente criado
         if os.path.exists(output_path):
             file_size = os.path.getsize(output_path)
-            print(f"📁 Arquivo STL criado: {file_size} bytes")
+            print(f"Arquivo STL criado: {file_size} bytes")
             
             # Ler o arquivo salvo para verificar as dimensões
             stl_verificado = mesh.Mesh.from_file(output_path)
@@ -309,57 +301,56 @@ def gerar_stl_simplificado(dimensoes, handedness, output_path, modelo_base_path)
                 min_z = stl_verificado.vectors[:,:,2].min()
                 max_z = stl_verificado.vectors[:,:,2].max()
                 
-                print(f"📏 Dimensões do STL gerado (verificado):")
+                print(f"Dimensões do STL gerado (verificado):")
                 print(f"   X: {min_x:.2f} a {max_x:.2f} (largura: {max_x-min_x:.2f})")
                 print(f"   Y: {min_y:.2f} a {max_y:.2f} (altura: {max_y-min_y:.2f})") 
                 print(f"   Z: {min_z:.2f} a {max_z:.2f} (profundidade: {max_z-min_z:.2f})")
             else:
-                print("⚠️ Não foi possível verificar as dimensões do STL")
+                print("Não foi possível verificar as dimensões do STL")
         else:
-            print("❌ Arquivo STL não foi criado")
+            print("Arquivo STL não foi criado")
             return False
         
         return True
         
     except Exception as e:
-        print(f"❌ Erro gerando STL: {e}")
+        print(f"Erro gerando STL: {e}")
         import traceback
         traceback.print_exc()
         return False
 
 def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, modo_manual=False, modelo_base_path=None):
-    """Pipeline simplificado sem contorno complexo."""
     try:
-        print("🔄 Iniciando pipeline simplificado...")
+        print("Iniciando pipeline simplificado...")
         
         # Carregar imagem
         imagem = cv.imread(caminho_imagem)
         if imagem is None:
-            print("❌ Não foi possível carregar a imagem")
+            print("Não foi possível carregar a imagem")
             return None, None, None, None, None
         
-        print(f"📷 Imagem carregada: {imagem.shape}")
+        print(f"Imagem carregada: {imagem.shape}")
         
         # 1. Detectar quadrado azul
-        print("🔍 Detectando quadrado azul...")
+        print("Detectando quadrado azul...")
         contorno_quadrado, dimensoes_quadrado, _ = detectar_quadrado_azul(imagem)
         
         escala_px_cm = 67.92  # Fallback
         if contorno_quadrado is not None:
             x, y, w, h = dimensoes_quadrado
             escala_px_cm = (w + h) / (2 * TAMANHO_QUADRADO_CM)
-            print(f"✅ Quadrado: {w}x{h} px, Escala: {escala_px_cm:.2f} px/cm")
+            print(f"Quadrado: {w}x{h} px, Escala: {escala_px_cm:.2f} px/cm")
         else:
-            print("⚠️ Quadrado não detectado, usando escala padrão")
+            print("Quadrado não detectado, usando escala padrão")
         
         # 2. Detectar landmarks
-        print("🖐️ Detectando landmarks...")
+        print("Detectando landmarks...")
         with mp_hands.Hands(static_image_mode=True, max_num_hands=1, min_detection_confidence=0.5) as hands:
             imagem_rgb = cv.cvtColor(imagem, cv.COLOR_BGR2RGB)
             resultados = hands.process(imagem_rgb)
             
             if not resultados.multi_hand_landmarks:
-                print("❌ Nenhuma mão detectada")
+                print("Nenhuma mão detectada")
                 return None, None, None, None, None
             
             hand_landmarks = resultados.multi_hand_landmarks[0]
@@ -371,52 +362,51 @@ def pipeline_processamento_simplificado(caminho_imagem, caminho_stl_saida=None, 
                     handedness_detectado = classification.label
                     break
             
-            print(f"✅ {len(landmarks)} landmarks detectados - Mão detectada: {handedness_detectado}")
+            print(f"{len(landmarks)} landmarks detectados - Mão detectada: {handedness_detectado}")
             
             # CORREÇÃO: Aplicar correção da detecção da mão
             handedness = corrigir_detecao_mao(landmarks, handedness_detectado, imagem.shape)
-            print(f"🔧 Mão final: {handedness}")
+            print(f"Mão final: {handedness}")
         
         # 3. Calcular dimensões
-        print("📏 Calculando dimensões...")
+        print("Calculando dimensões...")
         dimensoes = calcular_dimensoes_simplificado(landmarks, escala_px_cm, imagem.shape)
         if dimensoes is None:
-            print("❌ Erro no cálculo das dimensões")
+            print("Erro no cálculo das dimensões")
             return None, None, None, None, None
         
-        print(f"📐 Dimensões calculadas:")
+        print(f"Dimensões calculadas:")
         for key, value in dimensoes.items():
             print(f"   {key}: {value}")
         
         # 4. Desenhar resultados
-        print("🎨 Desenhando medidas e landmarks...")
+        print("Desenhando medidas e landmarks...")
         imagem_resultado = desenhar_medidas_simplificado(imagem, landmarks, dimensoes, contorno_quadrado)
         
         # 5. Gerar STL se solicitado
         stl_gerado = None
         if caminho_stl_saida and modelo_base_path:
-            print("🖨️ Gerando STL...")
+            print("Gerando STL...")
             if gerar_stl_simplificado(dimensoes, handedness, caminho_stl_saida, modelo_base_path):
                 stl_gerado = caminho_stl_saida
-                print(f"✅ STL gerado: {stl_gerado}")
+                print(f"STL gerado: {stl_gerado}")
             else:
-                print("❌ Falha ao gerar STL")
+                print("Falha ao gerar STL")
         else:
-            print("ℹ️ Geração de STL não solicitada ou caminho do modelo base não fornecido")
+            print("Geração de STL não solicitada ou caminho do modelo base não fornecido")
         
-        print("✅ Pipeline simplificado concluído!")
+        print("Pipeline simplificado concluído!")
         return stl_gerado, imagem_resultado, None, dimensoes, handedness
         
     except Exception as e:
-        print(f"💥 Erro no pipeline: {e}")
+        print(f"Erro no pipeline: {e}")
         import traceback
         traceback.print_exc()
         return None, None, None, None, None
 
 def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl_path=None):
-    """Função principal para a API - VERSÃO COMPLETAMENTE CORRIGIDA."""
     try:
-        print("🔍 Processando imagem para API...")
+        print("Processando imagem para API...")
         
         # Converter bytes para imagem
         nparr = np.frombuffer(imagem_bytes, np.uint8)
@@ -432,9 +422,9 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         # Gerar nome único para o STL
         temp_stl_path = os.path.join(UPLOAD_FOLDER, f"ortese_gerada_{int(time.time())}.stl")
         
-        print(f"📁 Processando imagem: {temp_img_path}")
-        print(f"📁 Saída STL: {temp_stl_path}")
-        print(f"📁 Modelo base: {modelo_base_stl_path}")
+        print(f"Processando imagem: {temp_img_path}")
+        print(f"Saída STL: {temp_stl_path}")
+        print(f"Modelo base: {modelo_base_stl_path}")
         
         # Processar
         stl_path, imagem_processada, _, dimensoes, handedness = pipeline_processamento_simplificado(
@@ -460,11 +450,11 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
             stl_filename = os.path.basename(stl_path)
             stl_url = f"/backend/models/{stl_filename}"
             
-            print(f"📎 STL disponível para download: {stl_url}")
-            print(f"📁 Caminho real do arquivo: {stl_path}")
-            print(f"📁 Tamanho do arquivo: {os.path.getsize(stl_path)} bytes")
+            print(f"STL disponível para download: {stl_url}")
+            print(f"Caminho real do arquivo: {stl_path}")
+            print(f"Tamanho do arquivo: {os.path.getsize(stl_path)} bytes")
         else:
-            print("ℹ️ Nenhum STL gerado para download")
+            print("Nenhum STL gerado para download")
             if stl_path:
                 print(f"❌ Arquivo STL não existe em: {stl_path}")
         
@@ -478,7 +468,7 @@ def processar_imagem_ortese_api(imagem_bytes, modo_manual=False, modelo_base_stl
         }
         
     except Exception as e:
-        print(f"❌ Erro no processamento: {e}")
+        print(f"Erro no processamento: {e}")
         import traceback
         traceback.print_exc()
         return {"erro": f"Erro no processamento: {str(e)}"}
